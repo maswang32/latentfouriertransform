@@ -1,0 +1,10 @@
+fmdiffae/data/voice.py
+
+# Python Files
+**/__pycache__
+*.py[cod]
+/.vscode
+**/*.egg-info
+
+# Notebooks
+notebooks

@@ -8,6 +8,7 @@ setup(
         "numpy",
         "tqdm",
         "torch",
+        "torchaudio",
         "torchvggish",
         "bigvgan @ git+https://github.com/maswang32/BigVGAN.git",
     ],

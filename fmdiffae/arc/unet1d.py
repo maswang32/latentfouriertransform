@@ -6,7 +6,7 @@ import math
 
 """
 Peculiarities from EDM that are supported:
-    - Biases are always zero,
+    - Biases are always initialized to zero
     - Attention in the decoder is only on the last of each group of blocks.
     - Attention in the encoder is on all blocks for resolutions that have it.
     - ConvTranspose scales the resampling kernel by 2.
@@ -146,10 +146,10 @@ class UNetBlock(nn.Module):
         dilation=1,
         up=False,
         down=False,
+        use_t=True,
         emb_dim=None,
         use_attention=False,
         num_heads=1,
-        use_t=True,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -159,10 +159,10 @@ class UNetBlock(nn.Module):
         self.up = up
         self.down = down
 
+        self.use_t = use_t
         self.emb_dim = emb_dim
         self.use_attention = use_attention
         self.num_heads = num_heads
-        self.use_t = use_t
 
         # Layers
         self.norm0 = GroupNorm(in_channels)
@@ -204,7 +204,7 @@ class UNetBlock(nn.Module):
         residual_stream = x
 
         x = self.conv0(F.silu(self.norm0(x)))
-        if self.use_t:
+        if emb is not None:
             x = x + self.emb_proj(emb).unsqueeze(-1)
         x = self.conv1(F.silu(self.norm1(x)))
 
@@ -248,17 +248,34 @@ class PositionalEncoding(nn.Module):
 
 
 class EmbeddingNetwork(nn.Module):
-    def __init__(self, num_sinusoids=128, emb_dim=512, max_input_value=100):
+    def __init__(
+        self, num_sinusoids=128, emb_dim=512, max_input_value=100, cond_dim=None
+    ):
         super().__init__()
-        self.map = PositionalEncoding(
-            num_sinusoids=num_sinusoids, max_input_value=max_input_value
-        )
-        self.linear0 = Linear(in_features=num_sinusoids, out_features=emb_dim)
-        self.linear1 = Linear(in_features=emb_dim, out_features=emb_dim)
 
-    def forward(self, x):
-        x = F.silu(self.linear0(self.map(x)))
-        return F.silu(self.linear1(x))
+        self.map_t = nn.Sequential(
+            PositionalEncoding(
+                num_sinusoids=num_sinusoids, max_input_value=max_input_value
+            ),
+            Linear(num_sinusoids, emb_dim),
+            nn.SiLU(),
+        )
+
+        if cond_dim:
+            self.map_cond = nn.Sequential(
+                Linear(cond_dim, emb_dim),
+                nn.SiLU(),
+                Linear(emb_dim, emb_dim),
+                nn.SiLU(),
+            )
+
+        self.out_proj = Linear(in_features=emb_dim, out_features=emb_dim)
+
+    def forward(self, x, cond=None):
+        x = self.map_t(x)
+        if cond is not None:
+            x = x + self.map_cond(cond)
+        return F.silu(self.out_proj(x))
 
 
 class UNet1d(nn.Module):
@@ -279,6 +296,7 @@ class UNet1d(nn.Module):
         emb_num_sinusoids=128,
         emb_dim_mult=4,
         max_t_value=100,
+        cond_dim=None,
     ):
         super().__init__()
         # Decoder has num_blocks_per_res + 1 blocks
@@ -313,6 +331,7 @@ class UNet1d(nn.Module):
             self.emb_num_sinusoids = emb_num_sinusoids
             self.emb_dim_mult = emb_dim_mult
             self.max_pos_value = max_t_value
+            self.cond_dim = cond_dim
 
             # Embedding Network
             self.emb_dim = model_dim * emb_dim_mult
@@ -322,6 +341,7 @@ class UNet1d(nn.Module):
                 num_sinusoids=emb_num_sinusoids,
                 emb_dim=self.emb_dim,
                 max_input_value=max_t_value,
+                cond_dim=cond_dim,
             )
 
         # Number of Levels
@@ -334,9 +354,9 @@ class UNet1d(nn.Module):
         self.num_params = sum(p.numel() for p in self.parameters())
         print(f"Number of Parameters: {self.num_params:,}")
 
-    def forward(self, x, ts=None):
+    def forward(self, x, ts=None, cond=None):
         if self.use_t:
-            emb = self.emb_network(ts)
+            emb = self.emb_network(ts, cond)
         else:
             emb = None
 

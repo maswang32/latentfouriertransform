@@ -14,7 +14,7 @@ class BigVGANTransform:
         self,
         model_name="bigvgan_v2_22khz_80band_256x",
         load_model_on_init=True,
-        batch_size=16,
+        batch_size=256,
         idle_device="cpu",
         active_device="cuda",
         max_log_spec_value=2.1922,

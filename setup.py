@@ -9,6 +9,8 @@ setup(
         "tqdm",
         "torch",
         "torchaudio",
+        "lightning",
+        "hydra-core",
         "torchvggish",
         "bigvgan @ git+https://github.com/maswang32/BigVGAN.git",
     ],

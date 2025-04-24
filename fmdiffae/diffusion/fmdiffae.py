@@ -7,12 +7,11 @@ from fmdiffae.arc.fftmask import FFTMask
 class FMDiffAE(nn.Module):
     def __init__(
         self,
-        decoder,
         encoder,
+        decoder,
         datashape=(80, 256),
         sigma_data=0.5,
         use_tanh=False,
-        use_mask_as_condition=False,
         **fftmask_kwargs,
     ):
         """
@@ -20,36 +19,31 @@ class FMDiffAE(nn.Module):
         The Decoder is an EDM-Style Diffusion Model.
 
         Attributes:
-            decoder (nn.Module): diffusion network
             encoder (nn.Module): maps an input condition to a feature map
+            decoder (nn.Module): diffusion network
             datashape (Tuple): shape of the data example, excluding batch size.
             sigma_data (float): per-dim standard deviation of the dataset
+            use_tanh (bool): if we should apply tanh after the encoder
         """
         super().__init__()
-        self.decoder = decoder
         self.encoder = encoder
+        self.decoder = decoder
         self.sigma_data = sigma_data
         self.datashape = datashape
         assert len(datashape) > 0
 
         self.use_tanh = use_tanh
-        self.use_mask_as_condition = use_mask_as_condition
         self.fftmask = FFTMask(**fftmask_kwargs)
 
     def forward(self, y, P_mean=-1.2, P_std=1.2):
         batch_size = y.shape[0]
 
         # Feature Map
-        if not self.use_tanh:
-            z = self.encoder(y)
-        else:
-            z = torch.tanh(self.encoder(y))
+        z = self.encoder(y)
+        if self.use_tanh:
+            z = torch.tanh(z)
 
-        if self.use_mask_as_condition:
-            z_masked, fft_mask = self.fftmask(z, return_mask=True)
-        else:
-            z_masked = self.fftmask(z)
-            fft_mask = None
+        z = self.fftmask(z)
 
         # Noisy Data
         sigmas = torch.exp(P_mean + torch.randn(batch_size, device=y.device) * P_std)
@@ -59,8 +53,8 @@ class FMDiffAE(nn.Module):
         noisy = c_in * (y + n)
 
         # Decoder Output
-        decoder_in = torch.cat((noisy, z_masked), dim=1)
-        decoder_out = self.decoder(decoder_in, c_noise, cond=fft_mask)
+        decoder_in = torch.cat((noisy, z), dim=1)
+        decoder_out = self.decoder(decoder_in, c_noise)
 
         target = (y - c_skip * (y + n)) / c_out
         loss = nn.functional.mse_loss(decoder_out, target)
@@ -82,18 +76,11 @@ class FMDiffAE(nn.Module):
         batch_size = inputs.shape[0]
 
         # Feature Map
-        if not self.use_tanh:
-            z = self.encoder(inputs)
-        else:
-            z = torch.tanh(self.encoder(inputs))
+        z = self.encoder(inputs)
+        if self.use_tanh:
+            z = torch.tanh(z)
 
-        if self.use_mask_as_condition:
-            z_masked, fft_mask = self.fftmask(
-                z, return_mask=True, lows=lows, highs=highs
-            )
-        else:
-            z_masked = self.fftmask(z, lows=lows, highs=highs)
-            fft_mask = None
+        z = self.fftmask(z, lows=lows, highs=highs)
 
         x_curr = (
             torch.randn((batch_size, *self.datashape), device=device, dtype=dtype)
@@ -126,8 +113,7 @@ class FMDiffAE(nn.Module):
             d_curr = self._get_derivative(
                 x_curr.expand(batch_size, *x_curr.shape[1:]),
                 self._add_dims(sigma, batch_size),
-                z_masked=z_masked,
-                fft_mask=fft_mask,
+                z=z,
             )
 
             x_next = x_curr + d_curr * delta_sigma
@@ -136,8 +122,7 @@ class FMDiffAE(nn.Module):
                 d_next = self._get_derivative(
                     x_next.expand(batch_size, *x_next.shape[1:]),
                     self._add_dims(sigma_next, batch_size),
-                    z_masked=z_masked,
-                    fft_mask=fft_mask,
+                    z=z,
                 )
                 d = (d_curr + d_next) / 2
 
@@ -164,12 +149,10 @@ class FMDiffAE(nn.Module):
         c_noise = c_noise.reshape(-1)
         return c_skip, c_out, c_in, c_noise
 
-    def _denoise(self, x, sigma, z_masked, fft_mask):
+    def _denoise(self, x, sigma, z):
         c_skip, c_out, c_in, c_noise = self._get_cs(sigma)
-        net_in = torch.cat((c_in * x, z_masked), dim=1)
-        return c_skip * x + c_out * self.decoder(net_in, c_noise, cond=fft_mask)
+        net_in = torch.cat((c_in * x, z), dim=1)
+        return c_skip * x + c_out * self.decoder(net_in, c_noise)
 
-    def _get_derivative(self, x, sigma, z_masked, fft_mask):
-        return (
-            x - self._denoise(x, sigma=sigma, z_masked=z_masked, fft_mask=fft_mask)
-        ) / sigma
+    def _get_derivative(self, x, sigma, z):
+        return (x - self._denoise(x, sigma=sigma, z=z)) / sigma

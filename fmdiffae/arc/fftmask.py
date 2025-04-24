@@ -29,7 +29,7 @@ class FFTMask(nn.Module):
         # Assign normalized frequencies to bins
         self.register_buffer("c", torch.linspace(0, 1, self.F).unsqueeze(0))
 
-    def forward(self, x, lows=None, highs=None, return_mask=False):
+    def forward(self, x, lows=None, highs=None):
         assert x.ndim == 3, "x must have 3 dimensions"
         assert (lows is None) == (highs is None)
         assert x.shape[-1] == self.length, "input length must match FFT Length"
@@ -45,11 +45,6 @@ class FFTMask(nn.Module):
             c = self.c.to(device=device, dtype=dtype)
             fft_mask = ((c >= lows.unsqueeze(1)) & (c <= highs.unsqueeze(1))).to(dtype)
 
-        x = torch.fft.irfft(
+        return torch.fft.irfft(
             fft_mask.unsqueeze(1) * torch.fft.rfft(x), n=self.length, dim=-1
         )
-
-        if not return_mask:
-            return x
-        else:
-            return x, fft_mask

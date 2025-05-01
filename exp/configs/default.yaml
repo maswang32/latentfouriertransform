@@ -1,0 +1,55 @@
+name: debug_run
+ckpt_path: null
+
+# Save Directories
+run_dir: exp/runs/${name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+hydra:
+  run:
+    dir: ${run_dir}
+
+# Imports
+defaults:
+  - data: voice
+  - model: fftmask_id
+  - callbacks: fftmask
+  - _self_
+
+# Custom Params
+use_ema_weights: True
+ema_decay: 0.999
+float32_matmul_precision: medium
+compile: True
+
+# Trainer Params
+trainer:
+  _target_: lightning.pytorch.Trainer
+  default_root_dir: ${run_dir}
+  max_steps: 100000
+  devices: 1
+  accelerator: gpu
+  precision: 32
+  enable_checkpointing: True
+  limit_val_batches: 4
+  check_val_every_n_epoch: 4
+  gradient_clip_val: 1.0
+  num_sanity_val_steps: 0
+
+# Optimizers/Schedulers
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 1e-4
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.LinearLR
+  start_factor: 0.01
+  end_factor: 1.0
+  total_iters: 4000
+
+# Logger
+logger:
+  _target_: lightning.pytorch.loggers.WandbLogger
+  project: fmdiffae
+  name: ${name}
+  resume: allow
+  save_dir: ${run_dir}
+  id: null

@@ -1,6 +1,0 @@
-defaults:
-  - data: dataset
-  - model: fmdiffae
-  - training: training
-  - eval: eval
-  - 

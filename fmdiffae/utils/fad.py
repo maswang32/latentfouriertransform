@@ -5,13 +5,19 @@ import numpy as np
 from tqdm import tqdm
 
 
-def get_embeddings_vggish(x, fs=22050):
+def get_embeddings_vggish(x, fs=22050, pbar=False):
     model = vggish()
     model.eval()
     model.postprocess = False
     embeddings = []
+
     with torch.no_grad():
-        for example in tqdm(x, desc="Computing VGGish Embeddings", leave=False):
+        if pbar:
+            iterator = tqdm(x, desc="Computing VGGish Embeddings", leave=False)
+        else:
+            iterator = x
+
+        for example in iterator:
             embeddings.append(
                 model.forward(
                     vggish_input.waveform_to_examples(
@@ -19,7 +25,7 @@ def get_embeddings_vggish(x, fs=22050):
                     )
                 )
             )
-    return torch.cat(embeddings, dim=0)
+    return torch.stack(embeddings, dim=0)
 
 
 def compute_fad_from_embeddings(embeddings1, embeddings2):
@@ -30,14 +36,14 @@ def compute_fad_from_embeddings(embeddings1, embeddings2):
 
     covmean = linalg.sqrtm(sigma1.dot(sigma2).astype(complex))
     if not np.isfinite(covmean).all():
-        tqdm.write("Adding 1e-6 to diagonal of covariance estimates")
+        print("Adding 1e-6 to diagonal of covariance estimates")
         offset = np.eye(sigma1.shape[0]) * 1e-6
         covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset).astype(complex))
 
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
             im = np.max(np.abs(covmean.imag))
-            tqdm.write(f"Warning: Imaginary Component in Covmean {im}")
+            print(f"Warning: Imaginary Component in Covmean {im}")
         covmean = covmean.real
 
     return (

@@ -38,13 +38,14 @@ class FFTMask(nn.Module):
         device, dtype = x.device, x.dtype
 
         if lows is None:
-            thresholds = torch.rand(batch_size, 1, device=device)
-            scores = torch.rand(batch_size, self.G, device=device)
-            fft_mask = (scores > thresholds).to(dtype) @ self.m.to(dtype)
+            thresholds = torch.rand(batch_size, 1, device=device, dtype=dtype)
+            scores = torch.rand(batch_size, self.G, device=device, dtype=dtype)
+            fft_mask = (scores > thresholds).to(dtype) @ self.m
         else:
-            c = self.c.to(device=device, dtype=dtype)
-            fft_mask = ((c >= lows.unsqueeze(1)) & (c <= highs.unsqueeze(1))).to(dtype)
+            fft_mask = (
+                (self.c >= lows.unsqueeze(1)) & (self.c <= highs.unsqueeze(1))
+            ).to(dtype)
 
         return torch.fft.irfft(
-            fft_mask.unsqueeze(1) * torch.fft.rfft(x), n=self.length, dim=-1
-        )
+            fft_mask.unsqueeze(1) * torch.fft.rfft(x.float()), n=self.length, dim=-1
+        ).to(dtype)

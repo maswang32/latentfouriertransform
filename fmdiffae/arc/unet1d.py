@@ -73,7 +73,7 @@ class Conv1d(nn.Module):
         if (up or down) and resample:
             resample_filter = torch.ones(1, 1, 2) / 2
             resample_filter = resample_filter.expand(in_channels, 1, 2)
-            self.register_buffer("resample_filter", resample_filter)
+            self.register_buffer("resample_filter", resample_filter, persistent=False)
 
         # Actual Convolution
         if kernel_size:
@@ -194,7 +194,11 @@ class UNetBlock(nn.Module):
         # Attention
         if use_attention:
             self.attention = nn.MultiheadAttention(
-                out_channels, num_heads=num_heads, bias=False, batch_first=True
+                out_channels,
+                num_heads=num_heads,
+                bias=False,
+                batch_first=True,
+                dtype=torch.float32,
             )
             # Zero-initialize attention out projection
             with torch.no_grad():
@@ -213,7 +217,7 @@ class UNetBlock(nn.Module):
         if self.use_attention:
             x_attn = x.permute(0, 2, 1)  # B, C, T -> B, T, C
             x_attn, _ = self.attention(x_attn, x_attn, x_attn)
-            x_attn = x_attn.permute(0, 2, 1)  # B, T, C -> B, C, T
+            x_attn = x_attn.to(x.dtype).permute(0, 2, 1)  # B, T, C -> B, C, T
             x = (x + x_attn) / math.sqrt(2)
 
         return x
@@ -240,7 +244,7 @@ class PositionalEncoding(nn.Module):
         angular_freqs = torch.logspace(
             0, 1, steps=num_freqs, base=min_angular_frequency
         )
-        self.register_buffer("angular_freqs", angular_freqs)
+        self.register_buffer("angular_freqs", angular_freqs, persistent=False)
 
     def forward(self, x):
         x = x.view(-1, 1) * self.angular_freqs.reshape(1, -1)
@@ -332,7 +336,7 @@ class UNet1d(nn.Module):
 
         # Print number of params
         self.num_params = sum(p.numel() for p in self.parameters())
-        print(f"Number of Parameters: {self.num_params:,}")
+        print(f"UNet1d Number of Parameters: {self.num_params:,}")
 
     def forward(self, x, ts=None):
         if self.use_t:

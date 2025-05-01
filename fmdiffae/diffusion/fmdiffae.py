@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from fmdiffae.arc.fftmask import FFTMask
 
 
 class FMDiffAE(nn.Module):
@@ -9,10 +8,10 @@ class FMDiffAE(nn.Module):
         self,
         encoder,
         decoder,
-        datashape=(80, 256),
+        freq_mask,
+        datashape=[80, 256],
         sigma_data=0.5,
         use_tanh=False,
-        **fftmask_kwargs,
     ):
         """
         Frequency-Masked Diffusion AutoEncoder.
@@ -21,7 +20,7 @@ class FMDiffAE(nn.Module):
         Attributes:
             encoder (nn.Module): maps an input condition to a feature map
             decoder (nn.Module): diffusion network
-            datashape (Tuple): shape of the data example, excluding batch size.
+            datashape (List[int]): shape of the data example, excluding batch size.
             sigma_data (float): per-dim standard deviation of the dataset
             use_tanh (bool): if we should apply tanh after the encoder
         """
@@ -33,7 +32,7 @@ class FMDiffAE(nn.Module):
         assert len(datashape) > 0
 
         self.use_tanh = use_tanh
-        self.fftmask = FFTMask(**fftmask_kwargs)
+        self.freq_mask = freq_mask
 
     def forward(self, y, P_mean=-1.2, P_std=1.2):
         batch_size = y.shape[0]
@@ -43,7 +42,7 @@ class FMDiffAE(nn.Module):
         if self.use_tanh:
             z = torch.tanh(z)
 
-        z = self.fftmask(z)
+        z = self.freq_mask(z)
 
         # Noisy Data
         sigmas = torch.exp(P_mean + torch.randn(batch_size, device=y.device) * P_std)
@@ -70,7 +69,7 @@ class FMDiffAE(nn.Module):
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
-        return_intermediates=False,
+        pbar=False,
     ):
         device, dtype = inputs.device, inputs.dtype
         batch_size = inputs.shape[0]
@@ -80,7 +79,7 @@ class FMDiffAE(nn.Module):
         if self.use_tanh:
             z = torch.tanh(z)
 
-        z = self.fftmask(z, lows=lows, highs=highs)
+        z = self.freq_mask(z, lows=lows, highs=highs)
 
         x_curr = (
             torch.randn((batch_size, *self.datashape), device=device, dtype=dtype)
@@ -99,16 +98,14 @@ class FMDiffAE(nn.Module):
         )
         sigmas = torch.cat((sigmas, torch.zeros(1, device=device, dtype=dtype)))
 
-        if return_intermediates:
-            intermediates = []
+        iterator = range(num_steps)
+        if pbar:
+            iterator = tqdm(iterator, desc="Generating", leave=False)
 
-        for step in tqdm(range(num_steps), desc="Generating", leave=False):
+        for step in iterator:
             sigma = sigmas[step]
             sigma_next = sigmas[step + 1]
             delta_sigma = sigma_next - sigma
-
-            if return_intermediates:
-                intermediates.append(x_curr.cpu())
 
             d_curr = self._get_derivative(
                 x_curr.expand(batch_size, *x_curr.shape[1:]),
@@ -129,10 +126,6 @@ class FMDiffAE(nn.Module):
                 x_next = x_curr + d * delta_sigma
 
             x_curr = x_next
-
-        if return_intermediates:
-            intermediates.append(x_curr.cpu())
-            return x_curr.cpu(), torch.stack(intermediates, dim=0), sigmas.cpu()
 
         return x_curr
 

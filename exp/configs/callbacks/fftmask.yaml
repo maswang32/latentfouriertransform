@@ -1,0 +1,76 @@
+checkpoint:
+  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  dirpath: ${run_dir}/checkpoints
+  filename: "{step}-{FAD/max_fad:.3f}"
+  monitor: "FAD/max_fad"
+  mode: min
+  save_top_k: 1
+  save_last: True
+
+
+plot_feature_map:
+  _target_: fmdiffae.training.callbacks.PlotFeatureMap
+  valid_idx: 0
+  
+generate_examples:
+  _target_: fmdiffae.training.callbacks.GenerateExamples
+  valid_idx: 0
+  num_steps: 100
+  low_highs:
+    [   
+        [1.0000, 0.0000],
+        [0.0000, 0.0000],
+        [0.0000, 0.0156],
+        [0.0000, 0.0312],
+        [0.0000, 0.0625],
+        [0.0000, 0.1250],
+        [0.0000, 0.2500],
+        [0.0000, 0.5000],
+        [0.0000, 1.0000],
+        [0.0078, 0.0156],
+        [0.0078, 0.0312],
+        [0.0078, 0.0625],
+        [0.0078, 0.1250],
+        [0.0078, 0.2500],
+        [0.0078, 0.5000],
+        [0.0078, 1.0000],
+        [0.0157, 0.0312],
+        [0.0157, 0.0625],
+        [0.0157, 0.1250],
+        [0.0157, 0.2500],
+        [0.0157, 0.5000],
+        [0.0157, 1.0000],
+        [0.0314, 0.0625],
+        [0.0314, 0.1250],
+        [0.0314, 0.2500],
+        [0.0314, 0.5000],
+        [0.0314, 1.0000],
+        [0.0626, 0.1250],
+        [0.0626, 0.2500],
+        [0.0626, 0.5000],
+        [0.0626, 1.0000],
+        [0.1251, 0.2500],
+        [0.1251, 0.5000],
+        [0.1251, 1.0000],
+        [0.2501, 0.5000],
+        [0.2501, 1.0000],
+        [0.5001, 1.0000],
+    ]
+  pbar: False
+
+fad_and_reconstruction:
+  _target_: fmdiffae.training.callbacks.FADAndReconstruction
+  num_samples: 256
+  num_steps: 35
+  low_highs: 
+    [
+        [0.0000, 0.0000],
+        [0.0078, 0.0156],
+        [0.0157, 0.0312],
+        [0.0314, 0.0625],
+        [0.0626, 0.1250],
+        [0.1251, 0.2500],
+        [0.2501, 0.5000],
+        [0.5001, 1.0000],
+    ]
+  pbar: False

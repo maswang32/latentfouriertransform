@@ -10,3 +10,7 @@ fmdiffae/data/voice.py
 notebooks
 scripts
 old
+
+# Checkpoints
+exp/runs
+exp/slurm/logs

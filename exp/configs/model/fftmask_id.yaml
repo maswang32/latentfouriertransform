@@ -1,0 +1,25 @@
+_target_: fmdiffae.diffusion.fmdiffae.FMDiffAE
+encoder: 
+  _target_: torch.nn.Identity
+  
+decoder:
+  _target_: fmdiffae.arc.unet1d.UNet1d
+  data_resolution: 256
+  in_channels: 160
+  out_channels: 80
+  model_dim: 256
+  channel_mults: [2, 2, 2, 3, 3]  # Res 256, 128, 64, 32, 16
+  num_blocks_per_res: 3
+  kernel_size: 3
+  dilation_sequence: [1, 1, 1, 1]
+  use_attention: True
+  attn_resolutions: [32]
+  use_t: True
+
+freq_mask:
+  _target_: fmdiffae.arc.fftmask.FFTMask
+  length: 256
+
+datashape: [80, 256]
+sigma_data: 0.5
+use_tanh: False

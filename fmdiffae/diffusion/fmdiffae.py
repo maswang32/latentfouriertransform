@@ -69,6 +69,7 @@ class FMDiffAE(nn.Module):
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
+        cfg_scale=1.0,
         pbar=False,
     ):
         device, dtype = inputs.device, inputs.dtype
@@ -108,18 +109,20 @@ class FMDiffAE(nn.Module):
             delta_sigma = sigma_next - sigma
 
             d_curr = self._get_derivative(
-                x_curr.expand(batch_size, *x_curr.shape[1:]),
+                x_curr,
                 self._add_dims(sigma, batch_size),
                 z=z,
+                cfg_scale=cfg_scale,
             )
 
             x_next = x_curr + d_curr * delta_sigma
 
             if step != num_steps - 1:
                 d_next = self._get_derivative(
-                    x_next.expand(batch_size, *x_next.shape[1:]),
+                    x_next,
                     self._add_dims(sigma_next, batch_size),
                     z=z,
+                    cfg_scale=cfg_scale,
                 )
                 d = (d_curr + d_next) / 2
 
@@ -147,5 +150,18 @@ class FMDiffAE(nn.Module):
         net_in = torch.cat((c_in * x, z), dim=1)
         return c_skip * x + c_out * self.decoder(net_in, c_noise)
 
-    def _get_derivative(self, x, sigma, z):
-        return (x - self._denoise(x, sigma=sigma, z=z)) / sigma
+    def _get_derivative(self, x, sigma, z, cfg_scale=1.0):
+        if cfg_scale == 1.0:
+            denoised = self._denoise(x, sigma=sigma, z=z)
+        else:
+            x_expanded = torch.cat((x, x), dim=0)
+            sigma_expanded = torch.cat((sigma, sigma), dim=0)
+            z_expanded = torch.cat((z, torch.zeros_like(z)), dim=0)
+
+            denoised_cond, denoised_uncond = self._denoise(
+                x_expanded, sigma=sigma_expanded, z=z_expanded
+            ).chunk(2, dim=0)
+
+            denoised = denoised_uncond.lerp(end=denoised_cond, weight=cfg_scale)
+
+        return (x - denoised) / sigma

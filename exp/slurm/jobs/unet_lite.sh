@@ -11,4 +11,4 @@
 #SBATCH --mem=64G
 
 cd /data/scratch/ycda/gen/fmdiffae
-/data/scratch/ycda/conda/envs/fmdiffae/bin/python train.py model=fftmask_unet_lite name=unet_lite
+/data/scratch/ycda/conda/envs/fmdiffae/bin/python train.py model=fftmask_unet_lite name=unet_lite ckpt_path=/data/scratch/ycda/gen/fmdiffae/exp/runs/unet_lite/2025-04-30/13-32-50/checkpoints/last.ckpt logger.id=klbbesy0

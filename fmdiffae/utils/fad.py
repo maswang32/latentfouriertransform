@@ -28,11 +28,17 @@ def get_embeddings_vggish(x, fs=22050, pbar=False):
     return torch.stack(embeddings, dim=0)
 
 
-def compute_fad_from_embeddings(embeddings1, embeddings2):
-    sigma1 = np.cov(embeddings1, rowvar=False)
-    sigma2 = np.cov(embeddings2, rowvar=False)
-    mean1 = np.mean(embeddings1, axis=0)
-    mean2 = np.mean(embeddings2, axis=0)
+def compute_fad_from_embeddings(
+    embeddings1=None, embeddings2=None, mean1=None, mean2=None, sigma1=None, sigma2=None
+):
+    if mean1 is None:
+        mean1 = np.mean(embeddings1, axis=0)
+    if sigma1 is None:
+        sigma1 = np.cov(embeddings1, rowvar=False)
+    if mean2 is None:
+        mean2 = np.mean(embeddings2, axis=0)
+    if sigma2 is None:
+        sigma2 = np.cov(embeddings2, rowvar=False)
 
     covmean = linalg.sqrtm(sigma1.dot(sigma2).astype(complex))
     if not np.isfinite(covmean).all():

@@ -1,16 +1,17 @@
 import os
-import glob
+import numpy as np
 import torch
 import torchaudio
-import webdataset as wds
+from webdataset import ShardWriter
+from tqdm import tqdm
 from fmdiffae.transforms.bigvgan import BigVGANTransform
 
 
-def resample(x, orig_rate, target_rate):
+def resample(x, fs_orig, fs_target):
     return torchaudio.functional.resample(
         x,
-        orig_rate,
-        target_rate,
+        orig_freq=fs_orig,
+        new_freq=fs_target,
         lowpass_filter_width=64,
         rolloff=0.9475937167399596,
         resampling_method="sinc_interp_kaiser",
@@ -34,13 +35,13 @@ def chunk_audio(
             Below 0.002 we get incomplete clips.
 
     Returns:
-        Tensor: (N, chunk_length_samples). audio chunks
+        Tensor (N, chunk_length_samples): audio chunks
     """
-    x, fs = torchaudio.load(audio_path)
+    x, fs_orig = torchaudio.load(audio_path)
 
     # Resample if needed
-    if fs_target is not None and fs != fs_target:
-        x = resample(x, fs, fs_target)
+    if fs_target is not None and fs_orig != fs_target:
+        x = resample(x, fs_orig=fs_orig, fs_target=fs_target)
 
     # Demean and normalize
     x = x - torch.mean(x, dim=-1, keepdim=True)
@@ -56,41 +57,56 @@ def chunk_audio(
 
     # Threshold based on energy
     chunk_energies = torch.mean(chunks**2, dim=-1)
-    return chunks[chunk_energies >= energy_threshold]
+    chunks = chunks[chunk_energies >= energy_threshold]
+
+    # Return Normalized Chunks
+    return chunks / chunks.abs().amax(-1, keepdim=True).clamp_min(1e-8)
 
 
 def save_webdataset(
     audio_paths,
     audio_names,
     save_dir,
-    maxcount=12000,  # Approx 1 GB / File for 256 x 80 specs
+    shuffle=True,
+    random_seed=7,
+    maxcount=8192,  # 12208 is 1 GB for 256 x 80 specs
     audio_pattern="audio-%06d.tar",
     specs_pattern="specs-%06d.tar",
     transform_cls=BigVGANTransform,
     transform_kwargs=None,
     chunk_audio_kwargs=None,
 ):
+    assert len(audio_paths) == len(audio_names), "num. paths and names must match"
+
     # Default Arguments
-    transform_kwargs = transform_kwargs or {"load_model_on_init": False}
+    transform_kwargs = transform_kwargs or {}
     chunk_audio_kwargs = chunk_audio_kwargs or {}
 
-    audio_sink = wds.ShardWriter(
-        os.path.join(save_dir, audio_pattern), maxcount=maxcount
-    )
-    spec_sink = wds.ShardWriter(
-        os.path.join(save_dir, specs_pattern), maxcount=maxcount
-    )
-    transform = transform_cls(**transform_kwargs)
+    indices = np.arange(len(audio_paths))
 
-    for audio_path, audio_name in zip(audio_paths, audio_names):
-        chunks = chunk_audio(audio_path, **chunk_audio_kwargs)
-        specs = transform(chunks)
+    if shuffle:
+        np.random.default_rng(random_seed).shuffle(indices)
 
-        for i, (chunk, spec) in enumerate(zip(chunks, specs)):
-            key = f"{audio_name}_{i:05d}"
+    print(indices)
 
-            audio_sink.write({"__key__": key, "audio.npy": chunk})
-            spec_sink.write({"__key__": key, "spec.pt": spec})
+    with (
+        ShardWriter(
+            os.path.join(save_dir, audio_pattern), maxcount=maxcount
+        ) as audio_sink,
+        ShardWriter(
+            os.path.join(save_dir, specs_pattern), maxcount=maxcount
+        ) as spec_sink,
+    ):
+        transform = transform_cls(**transform_kwargs)
 
-    audio_sink.close()
-    spec_sink.close()
+        for i in tqdm(indices.tolist(), desc="Writing Chunks"):
+            chunks = chunk_audio(audio_paths[i], **chunk_audio_kwargs)
+            specs = transform(chunks)
+
+            chunks = chunks.numpy()
+            specs = specs.numpy()
+
+            for j, (chunk, spec) in enumerate(zip(chunks, specs)):
+                key = f"{audio_names[i]}_{j:05d}"
+                audio_sink.write({"__key__": key, "audio.npy": chunk})
+                spec_sink.write({"__key__": key, "spec.npy": spec})

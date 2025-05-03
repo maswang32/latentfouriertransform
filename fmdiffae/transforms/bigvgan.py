@@ -57,8 +57,6 @@ class BigVGANTransform:
             hop_size=self.hop_size,
             win_size=self.win_size,
             fmin=self.fmin,
-            device=x.device,
-            dtype=x.dtype,
         )
         log_spec = log_spec.reshape(*x.shape[:-1], self.num_mels, -1)
         return 2 * ((log_spec - self.max_log_spec_value) / (self.range)) + 1

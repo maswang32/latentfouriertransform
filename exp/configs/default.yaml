@@ -15,7 +15,7 @@ defaults:
   - _self_
 
 # Custom Params
-batch_size: 256
+batch_size: 1024
 num_workers: 4
 use_ema_weights: True
 ema_decay: 0.999

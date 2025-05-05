@@ -17,7 +17,7 @@ generate_examples:
   valid_idx: null
   num_steps: 100
   low_highs:
-    [   
+    [
         [1.0000, 0.0000],
         [0.0000, 0.0000],
         [0.0000, 0.0156],

@@ -21,13 +21,7 @@ class FMDiffAEModule(L.LightningModule):
 
     def training_step(self, batch):
         loss = self(batch)
-        self.log(
-            "loss/train",
-            loss,
-            prog_bar=True,
-            on_step=True,
-            on_epoch=False,
-        )
+        self.log("loss/train", loss, prog_bar=True, on_step=True, on_epoch=False)
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
@@ -36,13 +30,7 @@ class FMDiffAEModule(L.LightningModule):
 
     def validation_step(self, batch):
         loss = self(batch)
-        self.log(
-            "loss/valid",
-            loss,
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
+        self.log("loss/valid", loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
     def configure_optimizers(self):

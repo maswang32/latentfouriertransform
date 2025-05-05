@@ -22,13 +22,20 @@ class PlotFeatureMap(Callback):
     @rank_zero_only
     @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
+        print("Plotting Feature Map")
+
         model = (
             pl_module.ema_model.module
             if getattr(pl_module, "ema_model", None)
             else pl_module.model
         )
 
-        inputs = trainer.datamodule.valid_ds[self.valid_idx]
+        if self.valid_idx is not None:
+            idx = self.valid_idx
+        else:
+            idx = torch.randint(0, len(trainer.datamodule.valid_ds), ())
+
+        inputs = trainer.datamodule.valid_ds[idx]
         inputs = inputs.to(pl_module.device).unsqueeze(0)
 
         feature_map = model.encoder(inputs).cpu().numpy()[0]
@@ -77,8 +84,15 @@ class GenerateExamples(Callback):
     @rank_zero_only
     @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
+        print("Generating Examples")
         device = pl_module.device
-        inputs = trainer.datamodule.valid_ds[self.valid_idx].to(device)
+
+        if self.valid_idx is not None:
+            idx = self.valid_idx
+        else:
+            idx = torch.randint(0, len(trainer.datamodule.valid_ds), ())
+
+        inputs = trainer.datamodule.valid_ds[idx].to(device)
         inputs = inputs.expand(self.num_examples, *inputs.shape).contiguous()
 
         lows, highs = self.low_highs.to(device).unbind(dim=-1)
@@ -119,7 +133,7 @@ class GenerateExamples(Callback):
 
 
 class FADAndReconstruction(Callback):
-    def __init__(self, num_samples, num_steps, low_highs, pbar=False):
+    def __init__(self, num_samples, num_steps, low_highs, pbar=True):
         super().__init__()
         self.num_samples = num_samples
         self.low_highs = torch.tensor(low_highs, dtype=torch.float32)
@@ -129,6 +143,8 @@ class FADAndReconstruction(Callback):
 
     @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
+        print_once("Computing FAD")
+
         # Defining Variables
         device = pl_module.device
         rank = pl_module.global_rank
@@ -138,6 +154,7 @@ class FADAndReconstruction(Callback):
         low_highs = self.low_highs.to(device)
         pbar = self.pbar and rank == 0
 
+        print("rank", rank)
         # Batching
         num_total_samples = self.num_samples * self.num_low_highs
         assert num_total_samples % batch_size == 0, (
@@ -163,14 +180,11 @@ class FADAndReconstruction(Callback):
         mses = []
         embs = []
         indices = []  # Debugging
-
         for batch_indices in rank_indices:
             batch_inputs = trainer.datamodule.valid_ds[
                 batch_indices % self.num_samples
             ].to(device)
-
             lows, highs = low_highs[batch_indices // self.num_samples].unbind(dim=-1)
-
             batch_samples = model.generate(
                 inputs=batch_inputs,
                 lows=lows,
@@ -221,10 +235,11 @@ class FADAndReconstruction(Callback):
             embs = embs.reshape(self.num_low_highs, -1, embs.shape[-1]).numpy()
             mses = mses.reshape(self.num_low_highs, self.num_samples).mean(-1).tolist()
 
+            ref_mean = np.load(trainer.datamodule.hparams.ref_mean_path)
+            ref_cov = np.load(trainer.datamodule.hparams.ref_cov_path)
+
             fads = [
-                compute_fad_from_embeddings(
-                    trainer.datamodule.valid_vggish_embeddings, x
-                )
+                compute_fad_from_embeddings(mean1=ref_mean, cov1=ref_cov, embeddings2=x)
                 for x in embs
             ]
 

@@ -6,7 +6,7 @@ ref_cov_path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_vggish_c
 
 
 train_dataset:
-  _target_: fmdiffae.data.mtg_jamendo.get_jamendo_wds
+  _target_: fmdiffae.data.data_utils.get_webdataset
   split: train
   base_dir: /data/hai-res/shared/datasets/mtg-jamendo/processed
   data_type: spec

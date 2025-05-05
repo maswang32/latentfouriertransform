@@ -1,7 +1,6 @@
 import os
 import csv
 import glob
-import torch
 import webdataset as wds
 from tqdm import tqdm
 from fmdiffae.data.data_utils import save_webdataset
@@ -26,37 +25,6 @@ def load_jamendo_tsv(tsv_path):
             )
 
     return records
-
-
-def get_jamendo_wds(
-    split="train",
-    base_dir="/data/hai-res/shared/datasets/mtg-jamendo/processed",
-    data_type="spec",
-    shuffle_size=2048,
-):
-    shard_paths = sorted(glob.glob(os.path.join(base_dir, split, f"{data_type}-*.tar")))
-
-    if split == "train":
-        dataset = wds.WebDataset(
-            shard_paths, resampled=True, shardshuffle=True
-        ).shuffle(shuffle_size)
-    else:
-        dataset = wds.WebDataset(shard_paths, resampled=False)
-
-    dataset = (
-        dataset.decode()
-        .to_tuple(f"{data_type}.npy")
-        .map_tuple(torch.from_numpy)
-        .map(lambda x: x[0])
-    )
-
-    return dataset
-
-
-def load_valid_subset(
-    path="/data/hai-res/shared/datasets/mtg-jamendo/processed/valid_subset_one_chunk_per_song.npy",
-):
-    return torch.from_numpy(np.load(path))
 
 
 if __name__ == "__main__":
@@ -95,8 +63,9 @@ if __name__ == "__main__":
     # # Save VGGish Emebddings
     import numpy as np
     from fmdiffae.utils.fad import get_embeddings_vggish
+    from fmdiffae.data.data_utils import get_webdataset
 
-    valid_dataset = get_jamendo_wds(
+    valid_dataset = get_webdataset(
         base_dir=save_base_dir, split="valid", data_type="audio"
     )
     valid_vggish_embeddings = get_embeddings_vggish(valid_dataset, pbar=True)

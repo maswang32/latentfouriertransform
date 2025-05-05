@@ -2,6 +2,8 @@ import os
 import numpy as np
 import torch
 import torchaudio
+import glob
+import webdataset as wds
 from webdataset import ShardWriter
 from tqdm import tqdm
 from fmdiffae.transforms.bigvgan import BigVGANTransform
@@ -111,6 +113,32 @@ def save_webdataset(
                 key = f"{audio_names[i]}_{j:05d}"
                 audio_sink.write({"__key__": key, "audio.npy": chunk})
                 spec_sink.write({"__key__": key, "spec.npy": spec})
+
+
+def get_webdataset(
+    split="train",
+    base_dir="/data/hai-res/shared/datasets/mtg-jamendo/processed",
+    data_type="spec",
+    shuffle_size=2048,
+    shard_shuffle=100,
+):
+    shard_paths = sorted(glob.glob(os.path.join(base_dir, split, f"{data_type}-*.tar")))
+
+    if split == "train":
+        dataset = wds.WebDataset(
+            shard_paths, resampled=True, shardshuffle=shard_shuffle
+        ).shuffle(shuffle_size)
+    else:
+        dataset = wds.WebDataset(shard_paths, resampled=False)
+
+    dataset = (
+        dataset.decode()
+        .to_tuple(f"{data_type}.npy")
+        .map_tuple(torch.from_numpy)
+        .map(lambda x: x[0])
+    )
+
+    return dataset
 
 
 class SingleTensorDataset(Dataset):

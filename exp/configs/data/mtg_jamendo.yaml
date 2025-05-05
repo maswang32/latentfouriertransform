@@ -1,0 +1,36 @@
+sample_rate: 22050
+batch_size: ${batch_size}
+
+ref_mean_path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_vggish_mean.npy
+ref_cov_path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_vggish_cov.npy
+
+
+train_dataset:
+  _target_: fmdiffae.data.mtg_jamendo.get_jamendo_wds
+  split: train
+  base_dir: /data/hai-res/shared/datasets/mtg-jamendo/processed
+  data_type: spec
+  shuffle_size: 2048
+
+valid_dataset:
+  _target_: fmdiffae.data.data_utils.SingleTensorDataset
+  path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_subset_one_chunk_per_song.npy
+    
+train_dataloader:
+  _target_: webdataset.WebLoader
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False
+
+valid_dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: ${batch_size}
+  shuffle: False
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False
+
+transform:
+  _target_: fmdiffae.transforms.bigvgan.BigVGANTransform
+  batch_size: 256

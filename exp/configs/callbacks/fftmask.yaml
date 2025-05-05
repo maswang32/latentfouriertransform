@@ -10,11 +10,11 @@ checkpoint:
 
 plot_feature_map:
   _target_: fmdiffae.training.callbacks.PlotFeatureMap
-  valid_idx: 0
+  valid_idx: null
   
 generate_examples:
   _target_: fmdiffae.training.callbacks.GenerateExamples
-  valid_idx: 0
+  valid_idx: null
   num_steps: 100
   low_highs:
     [   
@@ -56,7 +56,7 @@ generate_examples:
         [0.2501, 1.0000],
         [0.5001, 1.0000],
     ]
-  pbar: False
+  pbar: True
 
 fad_and_reconstruction:
   _target_: fmdiffae.training.callbacks.FADAndReconstruction
@@ -73,4 +73,4 @@ fad_and_reconstruction:
         [0.2501, 0.5000],
         [0.5001, 1.0000],
     ]
-  pbar: False
+  pbar: True

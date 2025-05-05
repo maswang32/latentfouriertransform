@@ -5,6 +5,7 @@ import torchaudio
 from webdataset import ShardWriter
 from tqdm import tqdm
 from fmdiffae.transforms.bigvgan import BigVGANTransform
+from torch.utils.data.dataset import Dataset
 
 
 def resample(x, fs_orig, fs_target):
@@ -110,3 +111,15 @@ def save_webdataset(
                 key = f"{audio_names[i]}_{j:05d}"
                 audio_sink.write({"__key__": key, "audio.npy": chunk})
                 spec_sink.write({"__key__": key, "spec.npy": spec})
+
+
+class SingleTensorDataset(Dataset):
+    def __init__(self, path):
+        super().__init__()
+        self.data = torch.from_numpy(np.load(path))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]

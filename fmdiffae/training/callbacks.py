@@ -73,12 +73,13 @@ class PlotFeatureMap(Callback):
 
 
 class GenerateExamples(Callback):
-    def __init__(self, valid_idx, num_steps, low_highs, pbar=False):
+    def __init__(self, valid_idx, num_steps, low_highs, cfg_scale=1.0, pbar=False):
         super().__init__()
         self.valid_idx = valid_idx
         self.low_highs = torch.tensor(low_highs, dtype=torch.float32)
         self.num_examples = len(self.low_highs)
         self.num_steps = num_steps
+        self.cfg_scale = cfg_scale
         self.pbar = pbar
 
     @rank_zero_only
@@ -108,6 +109,7 @@ class GenerateExamples(Callback):
             lows=lows,
             highs=highs,
             num_steps=self.num_steps,
+            cfg_scale=self.cfg_scale,
             pbar=self.pbar,
         )
 

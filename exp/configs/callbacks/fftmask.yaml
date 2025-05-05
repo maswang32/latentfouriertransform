@@ -16,6 +16,7 @@ generate_examples:
   _target_: fmdiffae.training.callbacks.GenerateExamples
   valid_idx: null
   num_steps: 100
+  cfg_scale: 1.0
   low_highs:
     [
         [1.0000, 0.0000],

@@ -3,7 +3,7 @@ dataset:
   data_dir: /data/scratch/ycda/datasets/Voice/normalized_22khz_65536
 
 transform:
-  _target_: fmdiffae.transforms.bigvgan.BigVGANTransform
+  _target_: fmdiffae.transforms.bigvgan_transform.BigVGANTransform
   batch_size: 256
 
 sample_rate: 22050

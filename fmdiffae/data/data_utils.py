@@ -6,7 +6,7 @@ import glob
 import webdataset as wds
 from webdataset import ShardWriter
 from tqdm import tqdm
-from fmdiffae.transforms.bigvgan import BigVGANTransform
+from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 from torch.utils.data.dataset import Dataset
 
 
@@ -120,14 +120,11 @@ def get_webdataset(
     base_dir="/data/hai-res/shared/datasets/mtg-jamendo/processed",
     data_type="spec",
     shuffle_size=2048,
-    shard_shuffle=100,
 ):
     shard_paths = sorted(glob.glob(os.path.join(base_dir, split, f"{data_type}-*.tar")))
 
     if split == "train":
-        dataset = wds.WebDataset(
-            shard_paths, resampled=True, shardshuffle=shard_shuffle
-        ).shuffle(shuffle_size)
+        dataset = wds.WebDataset(shard_paths, resampled=True).shuffle(shuffle_size)
     else:
         dataset = wds.WebDataset(shard_paths, resampled=False)
 

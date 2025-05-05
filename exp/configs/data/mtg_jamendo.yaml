@@ -32,5 +32,5 @@ valid_dataloader:
   persistent_workers: False
 
 transform:
-  _target_: fmdiffae.transforms.bigvgan.BigVGANTransform
+  _target_: fmdiffae.transforms.bigvgan_transform.BigVGANTransform
   batch_size: 256

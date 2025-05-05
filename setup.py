@@ -11,7 +11,9 @@ setup(
         "torchaudio",
         "lightning",
         "hydra-core",
+        "webdataset",
         "torchvggish",
         "bigvgan @ git+https://github.com/maswang32/BigVGAN.git",
+        "wandb",
     ],
 )

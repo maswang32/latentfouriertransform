@@ -11,4 +11,4 @@ old
 
 # Checkpoints
 exp/runs
-exp/slurm/logs
+exp/slurm

@@ -21,7 +21,8 @@ def get_embeddings_vggish(x, fs=22050, pbar=False):
             embeddings.append(
                 model.forward(
                     vggish_input.waveform_to_examples(
-                        example.numpy().reshape(-1), sample_rate=fs
+                        example.numpy().reshape(-1),
+                        sample_rate=fs,
                     )
                 )
             )
@@ -29,22 +30,22 @@ def get_embeddings_vggish(x, fs=22050, pbar=False):
 
 
 def compute_fad_from_embeddings(
-    embeddings1=None, embeddings2=None, mean1=None, mean2=None, sigma1=None, sigma2=None
+    embeddings1=None, embeddings2=None, mean1=None, mean2=None, cov1=None, cov2=None
 ):
     if mean1 is None:
         mean1 = np.mean(embeddings1, axis=0)
-    if sigma1 is None:
-        sigma1 = np.cov(embeddings1, rowvar=False)
+    if cov1 is None:
+        cov1 = np.cov(embeddings1, rowvar=False)
     if mean2 is None:
         mean2 = np.mean(embeddings2, axis=0)
-    if sigma2 is None:
-        sigma2 = np.cov(embeddings2, rowvar=False)
+    if cov2 is None:
+        cov2 = np.cov(embeddings2, rowvar=False)
 
-    covmean = linalg.sqrtm(sigma1.dot(sigma2).astype(complex))
+    covmean = linalg.sqrtm(cov1.dot(cov2).astype(complex))
     if not np.isfinite(covmean).all():
         print("Adding 1e-6 to diagonal of covariance estimates")
-        offset = np.eye(sigma1.shape[0]) * 1e-6
-        covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset).astype(complex))
+        offset = np.eye(cov1.shape[0]) * 1e-6
+        covmean = linalg.sqrtm((cov1 + offset).dot(cov2 + offset).astype(complex))
 
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
@@ -54,7 +55,7 @@ def compute_fad_from_embeddings(
 
     return (
         np.sum((mean1 - mean2) ** 2)
-        + np.trace(sigma1)
-        + np.trace(sigma2)
+        + np.trace(cov1)
+        + np.trace(cov2)
         - 2 * np.trace(covmean)
     )

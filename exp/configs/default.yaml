@@ -15,8 +15,8 @@ defaults:
   - _self_
 
 # Custom Params
-batch_size: 1024
-num_workers: 255
+batch_size: 512
+num_workers: 32
 use_ema_weights: True
 ema_decay: 0.999
 float32_matmul_precision: medium
@@ -33,7 +33,7 @@ trainer:
   enable_checkpointing: True
   limit_val_batches: 1.0        # Full valid set
   check_val_every_n_epoch: 1
-  val_check_interval: 4000
+  val_check_interval: 1000
   gradient_clip_val: 1.0
   num_sanity_val_steps: 0
 

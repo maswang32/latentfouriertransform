@@ -8,7 +8,7 @@ encoder:
   in_channels: 80
   out_channels: 80
   model_dim: 256
-  channel_mults: [2, 2, 2, 3, 3]  # Res 256, 128, 64, 32, 16
+  channel_mults: [1, 2, 2, 3]  # Res 256, 128, 64, 3
   num_blocks_per_res: 3
   kernel_size: 3
   dilation_sequence: [1, 1, 1, 1]

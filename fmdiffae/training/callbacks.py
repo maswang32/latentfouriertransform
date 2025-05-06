@@ -228,34 +228,33 @@ class FADAndReconstruction(Callback):
             mses = mses.cpu()
             embs = embs.cpu()
 
-        # Debugging
+        # Debugging - Ensure indices are gathered in correct order
         torch.set_printoptions(threshold=float("inf"))
-        print_once(indices)  # Debugging
+        print_once(indices)
 
-        if rank == 0:
-            # (HL*N, T, E) -> (HL, N*T, E)
-            embs = embs.reshape(self.num_low_highs, -1, embs.shape[-1]).numpy()
-            mses = mses.reshape(self.num_low_highs, self.num_samples).mean(-1).tolist()
+        # (HL*N, T, E) -> (HL, N*T, E)
+        embs = embs.reshape(self.num_low_highs, -1, embs.shape[-1]).numpy()
+        mses = mses.reshape(self.num_low_highs, self.num_samples).mean(-1).tolist()
 
-            ref_mean = np.load(trainer.datamodule.hparams.ref_mean_path)
-            ref_cov = np.load(trainer.datamodule.hparams.ref_cov_path)
+        ref_mean = np.load(trainer.datamodule.hparams.ref_mean_path)
+        ref_cov = np.load(trainer.datamodule.hparams.ref_cov_path)
 
-            fads = [
-                compute_fad_from_embeddings(mean1=ref_mean, cov1=ref_cov, embeddings2=x)
-                for x in embs
-            ]
+        fads = [
+            compute_fad_from_embeddings(mean1=ref_mean, cov1=ref_cov, embeddings2=x)
+            for x in embs
+        ]
 
-            fad_names = [f"FAD/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs]
-            mse_names = [
-                f"Recon_MSE/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs
-            ]
+        fad_names = [f"FAD/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs]
+        mse_names = [
+            f"Recon_MSE/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs
+        ]
 
-            metrics = {
-                **{name: fad for name, fad in zip(fad_names, fads)},
-                **{name: mse for name, mse in zip(mse_names, mses)},
-            }
-            trainer.logger.experiment.log(
-                metrics,
-                step=trainer.global_step,
-            )
-            pl_module.log("FAD/max_fad", max(fads), sync_dist=False)
+        metrics = {
+            **{name: fad for name, fad in zip(fad_names, fads)},
+            **{name: mse for name, mse in zip(mse_names, mses)},
+        }
+        trainer.logger.experiment.log(
+            metrics,
+            step=trainer.global_step,
+        )
+        pl_module.log("FAD/max_fad", max(fads), sync_dist=True)

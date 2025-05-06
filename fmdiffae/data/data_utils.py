@@ -124,9 +124,13 @@ def get_webdataset(
     shard_paths = sorted(glob.glob(os.path.join(base_dir, split, f"{data_type}-*.tar")))
 
     if split == "train":
-        dataset = wds.WebDataset(shard_paths, resampled=True).shuffle(shuffle_size)
+        dataset = wds.WebDataset(
+            shard_paths, resampled=True, nodesplitter=wds.split_by_node
+        ).shuffle(shuffle_size)
     else:
-        dataset = wds.WebDataset(shard_paths, resampled=False)
+        dataset = wds.WebDataset(
+            shard_paths, resampled=False, nodesplitter=wds.split_by_node
+        )
 
     dataset = (
         dataset.decode()

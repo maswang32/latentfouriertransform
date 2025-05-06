@@ -11,10 +11,11 @@ class FMDiffAEModule(L.LightningModule):
         self.model = instantiate(config.model)
         self.transform = instantiate(config.data.transform)
 
-        if config.use_ema_weights:
+    def on_train_start(self):
+        if self.hparams.use_ema_weights:
             self.ema_model = AveragedModel(
-                self.model, multi_avg_fn=get_ema_multi_avg_fn(config.ema_decay)
-            )
+                self.model, multi_avg_fn=get_ema_multi_avg_fn(self.hparams.ema_decay)
+            ).to(self.device)
 
     def forward(self, x, *args, **kwargs):
         return self.model(x, *args, **kwargs)

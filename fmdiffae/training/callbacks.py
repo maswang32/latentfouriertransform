@@ -126,12 +126,8 @@ class GenerateExamples(Callback):
                 ]
             )
 
-        trainer.logger.log_table(
-            key="examples/table",
-            columns=["range", "spectrogram", "audio"],
-            data=rows,
-            step=trainer.global_step,
-        )
+        table = wandb.Table(columns=["range", "spectrogram", "audio"], data=rows)
+        wandb.log({"examples": table}, step=trainer.global_step)
 
 
 class FADAndReconstruction(Callback):

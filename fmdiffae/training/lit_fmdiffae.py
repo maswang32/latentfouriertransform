@@ -46,6 +46,6 @@ class FMDiffAEModule(L.LightningModule):
         self.transform.model.to(self.device)
 
     @classmethod
-    def load_torch_model(cls, ckpt_path):
-        lit = cls.load_from_checkpoint(ckpt_path)
+    def load_torch_model(cls, ckpt_path, strict=True):
+        lit = cls.load_from_checkpoint(ckpt_path, strict=strict)
         return lit.ema_model.module if hasattr(lit, "ema_model") else lit.model

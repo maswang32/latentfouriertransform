@@ -1,13 +1,13 @@
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 import lightning as L
 from hydra.utils import instantiate
+from omegaconf import OmegaConf
 
 
 class FMDiffAEModule(L.LightningModule):
     def __init__(self, config):
         super().__init__()
-        self.save_hyperparameters(config)
-
+        self.save_hyperparameters(OmegaConf.to_container(config, resolve=True))
         self.model = instantiate(config.model)
         self.transform = instantiate(config.data.transform)
 
@@ -45,6 +45,7 @@ class FMDiffAEModule(L.LightningModule):
     def on_fit_start(self):
         self.transform.model.to(self.device)
 
+    @classmethod
     def load_torch_model(cls, ckpt_path):
         lit = cls.load_from_checkpoint(ckpt_path)
         return lit.ema_model.module if hasattr(lit, "ema_model") else lit.model

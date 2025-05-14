@@ -62,7 +62,7 @@ generate_examples:
 
 fad_and_reconstruction:
   _target_: fmdiffae.training.callbacks.FADAndReconstruction
-  num_samples: 256
+  num_samples: 512
   num_steps: 35
   low_highs: 
     [

@@ -8,6 +8,7 @@ class FMDiffAEModule(L.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters(OmegaConf.to_container(config, resolve=True))
+        self.strict_loading = config.strict_loading
         self.model = instantiate(config.model)
         self.transform = instantiate(config.data.transform)
 

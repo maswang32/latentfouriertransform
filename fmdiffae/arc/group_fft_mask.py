@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 
-class FFTMask(nn.Module):
+class GroupFFTMask(nn.Module):
     def __init__(self, length=256):
         super().__init__()
 

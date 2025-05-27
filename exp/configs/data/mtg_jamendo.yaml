@@ -4,7 +4,6 @@ batch_size: ${batch_size}
 ref_mean_path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_vggish_mean.npy
 ref_cov_path: /data/hai-res/shared/datasets/mtg-jamendo/processed/valid_vggish_cov.npy
 
-
 train_dataset:
   _target_: fmdiffae.data.data_utils.get_webdataset
   split: train

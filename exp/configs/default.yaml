@@ -10,8 +10,8 @@ hydra:
 # Imports
 defaults:
   - data: mtg_jamendo
-  - model: fftmask_id
-  - callbacks: fftmask
+  - model: default
+  - callbacks: default
   - _self_
 
 # Custom Params

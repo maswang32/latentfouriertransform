@@ -24,10 +24,12 @@ class GroupFFTMask(nn.Module):
             else:
                 m[i, splits[i] // 2 + 1 : splits[i] + 1] = 1
 
-        self.register_buffer("m", m)
+        self.register_buffer("m", m, persistent=False)
 
         # Assign normalized frequencies to bins
-        self.register_buffer("c", torch.linspace(0, 1, self.F).unsqueeze(0))
+        self.register_buffer(
+            "c", torch.linspace(0, 1, self.F).unsqueeze(0), persistent=False
+        )
 
     def forward(self, x, lows=None, highs=None):
         assert x.ndim == 3, "x must have 3 dimensions"

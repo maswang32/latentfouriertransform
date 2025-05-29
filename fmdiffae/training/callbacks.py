@@ -19,6 +19,9 @@ class PlotFeatureMap(Callback):
         super().__init__()
         self.valid_idx = valid_idx
 
+        if valid_idx is None:
+            self.counter = 0
+
     @rank_zero_only
     @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
@@ -33,7 +36,8 @@ class PlotFeatureMap(Callback):
         if self.valid_idx is not None:
             idx = self.valid_idx
         else:
-            idx = torch.randint(0, len(trainer.datamodule.valid_ds), ())
+            idx = self.counter % len(trainer.datamodule.valid_ds)
+            self.counter += 1
 
         inputs = trainer.datamodule.valid_ds[idx]
         inputs = inputs.to(pl_module.device).unsqueeze(0)
@@ -82,6 +86,9 @@ class GenerateExamples(Callback):
         self.cfg_scale = cfg_scale
         self.pbar = pbar
 
+        if valid_idx is None:
+            self.counter = 0
+
     @rank_zero_only
     @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
@@ -91,7 +98,8 @@ class GenerateExamples(Callback):
         if self.valid_idx is not None:
             idx = self.valid_idx
         else:
-            idx = torch.randint(0, len(trainer.datamodule.valid_ds), ())
+            idx = self.counter % len(trainer.datamodule.valid_ds)
+            self.counter += 1
 
         inputs = trainer.datamodule.valid_ds[idx].to(device)
         inputs = inputs.expand(self.num_examples, *inputs.shape).contiguous()
@@ -120,8 +128,8 @@ class GenerateExamples(Callback):
         for (low, high), sample, audio in zip(self.low_highs, samples, audios):
             rows.append(
                 [
-                    f"{low:.3f}-{high:.3f}",
-                    wandb.Image(sample, caption=f"{low:.3f}-{high:.3f}"),
+                    f"{low:.4f}-{high:.4f}",
+                    wandb.Image(sample, caption=f"{low:.4f}-{high:.4f}"),
                     wandb.Audio(audio, sample_rate=trainer.datamodule.sample_rate),
                 ]
             )
@@ -240,9 +248,9 @@ class FADAndReconstruction(Callback):
             for x in embs
         ]
 
-        fad_names = [f"FAD/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs]
+        fad_names = [f"FAD/{low:.4f}-{high:.4f}" for (low, high) in self.low_highs]
         mse_names = [
-            f"Recon_MSE/{low:.3f}-{high:.3f}" for (low, high) in self.low_highs
+            f"Recon_MSE/{low:.4f}-{high:.4f}" for (low, high) in self.low_highs
         ]
 
         metrics = {

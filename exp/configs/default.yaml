@@ -1,8 +1,9 @@
 name: debug_run
 ckpt_path: null
+load_last_if_avail: True
 
 # Save Directories
-run_dir: exp/runs/${name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+run_dir: exp/runs/${name}
 hydra:
   run:
     dir: ${run_dir}
@@ -53,6 +54,5 @@ logger:
   _target_: lightning.pytorch.loggers.WandbLogger
   project: fmdiffae_mtg_3
   name: ${name}
-  resume: allow
   save_dir: ${run_dir}
   id: null

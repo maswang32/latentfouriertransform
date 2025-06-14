@@ -72,9 +72,8 @@ def save_webdataset(
     save_dir,
     shuffle=True,
     random_seed=7,
-    maxcount=8192,  # 12208 is 1 GB for 256 x 80 specs
-    audio_pattern="audio-%06d.tar",
-    specs_pattern="specs-%06d.tar",
+    maxcount=8192,  # for 256 x 80 specs + 65536 audio, this is 2.8 GB/shard
+    pattern="data-%06d.tar",
     transform_cls=BigVGANTransform,
     transform_kwargs=None,
     chunk_audio_kwargs=None,
@@ -91,28 +90,18 @@ def save_webdataset(
         np.random.default_rng(random_seed).shuffle(indices)
 
     print(indices)
-
-    with (
-        ShardWriter(
-            os.path.join(save_dir, audio_pattern), maxcount=maxcount
-        ) as audio_sink,
-        ShardWriter(
-            os.path.join(save_dir, specs_pattern), maxcount=maxcount
-        ) as spec_sink,
-    ):
+    with ShardWriter(os.path.join(save_dir, pattern), maxcount=maxcount) as sink:
         transform = transform_cls(**transform_kwargs)
 
         for i in tqdm(indices.tolist(), desc="Writing Chunks"):
             chunks = chunk_audio(audio_paths[i], **chunk_audio_kwargs)
             specs = transform(chunks)
-
             chunks = chunks.numpy()
             specs = specs.numpy()
 
             for j, (chunk, spec) in enumerate(zip(chunks, specs)):
                 key = f"{audio_names[i]}_{j:05d}"
-                audio_sink.write({"__key__": key, "audio.npy": chunk})
-                spec_sink.write({"__key__": key, "spec.npy": spec})
+                sink.write({"__key__": key, "audio.npy": chunk, "spec.npy":spec})
 
 
 def get_webdataset(
@@ -121,7 +110,7 @@ def get_webdataset(
     data_type="spec",
     shuffle_size=2048,
 ):
-    shard_paths = sorted(glob.glob(os.path.join(base_dir, split, f"{data_type}-*.tar")))
+    shard_paths = sorted(glob.glob(os.path.join(base_dir, split, "data-*.tar")))
 
     if split == "train":
         dataset = wds.WebDataset(
@@ -132,12 +121,20 @@ def get_webdataset(
             shard_paths, resampled=False, nodesplitter=wds.split_by_node
         )
 
-    dataset = (
-        dataset.decode()
-        .to_tuple(f"{data_type}.npy")
-        .map_tuple(torch.from_numpy)
-        .map(lambda x: x[0])
-    )
+    dataset = dataset.decode()
+    
+    if data_type =="both":
+        dataset = (
+            dataset.to_tuple("audio.npy", "spec.npy")
+            .map_tuple(torch.from_numpy, torch.from_numpy)
+        )
+    else:
+        dataset = (
+            dataset
+            .to_tuple(f"{data_type}.npy")
+            .map_tuple(torch.from_numpy)
+            .map(lambda x: x[0])
+        )
 
     return dataset
 

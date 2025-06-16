@@ -106,7 +106,7 @@ def save_webdataset(
 
 def get_webdataset(
     split="train",
-    base_dir="/data/hai-res/shared/datasets/mtg-jamendo/processed",
+    base_dir="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full",
     data_type="spec",
     shuffle_size=2048,
 ):

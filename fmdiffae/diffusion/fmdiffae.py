@@ -162,6 +162,7 @@ class FMDiffAE(nn.Module):
                 x_expanded, sigma=sigma_expanded, z=z_expanded
             ).chunk(2, dim=0)
 
-            denoised = denoised_uncond.lerp(end=denoised_cond, weight=cfg_scale)
+            # Mixing denoised is the same as mixing derivatives
+            denoised = denoised_uncond + cfg_scale * (denoised_cond - denoised_uncond)
 
         return (x - denoised) / sigma

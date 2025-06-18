@@ -13,7 +13,7 @@ train_dataset:
 
 valid_dataset:
   _target_: fmdiffae.data.data_utils.SingleTensorDataset
-  path: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full/valid_subset_one_chunk_per_song.npy
+  path: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full/valid_subset_spec.npy
     
 train_dataloader:
   _target_: webdataset.WebLoader

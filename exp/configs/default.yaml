@@ -52,7 +52,7 @@ scheduler:
 # Logger
 logger:
   _target_: lightning.pytorch.loggers.WandbLogger
-  project: fmdiffae_mtg_3
+  project: fmdiffae_mtg_4_full
   name: ${name}
   save_dir: ${run_dir}
   id: null

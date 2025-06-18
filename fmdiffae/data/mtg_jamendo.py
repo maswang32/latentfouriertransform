@@ -89,10 +89,10 @@ if __name__ == "__main__":
     )
 
     mean = np.mean(valid_vggish_embeddings, axis=0)
-    np.save("valid_vggish_mean.npy", mean)
+    np.save(os.path.join(save_base_dir, "valid_vggish_mean.npy"), mean)
 
     cov = np.cov(valid_vggish_embeddings, rowvar=False)
-    np.save("valid_vggish_cov.npy", cov)
+    np.save(os.path.join(save_base_dir, "valid_vggish_cov.npy"), cov)
 
     # Save approx one-chunk-per-song valid subset for easy metric computation
     shard_paths = sorted(glob.glob(os.path.join(save_base_dir, "valid", "data-*.tar")))

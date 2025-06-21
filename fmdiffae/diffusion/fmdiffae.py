@@ -37,11 +37,12 @@ class FMDiffAE(nn.Module):
     def forward(self, y, P_mean=-1.2, P_std=1.2):
         batch_size = y.shape[0]
 
-        # Feature Map
+        # Get Feature Map
         z = self.encoder(y)
         if self.use_tanh:
             z = torch.tanh(z)
 
+        # Apply Frequency Mask
         z = self.freq_mask(z)
 
         # Noisy Data
@@ -65,17 +66,22 @@ class FMDiffAE(nn.Module):
         inputs,
         lows,
         highs,
+        cfg_scale=1.0,
+        blend_weights=None,
         num_steps=35,
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
-        cfg_scale=1.0,
         pbar=False,
     ):
         device, dtype = inputs.device, inputs.dtype
-        batch_size = inputs.shape[0]
+        num_inputs = inputs.shape[0]
+        batch_size = num_inputs if blend_weights is None else 1
 
         # Feature Map
+        assert lows.shape[0] == num_inputs
+        assert highs.shape[0] == num_inputs
+
         z = self.encoder(inputs)
         if self.use_tanh:
             z = torch.tanh(z)
@@ -113,6 +119,7 @@ class FMDiffAE(nn.Module):
                 self._add_dims(sigma, batch_size),
                 z=z,
                 cfg_scale=cfg_scale,
+                blend_weights=blend_weights,
             )
 
             x_next = x_curr + d_curr * delta_sigma
@@ -123,6 +130,7 @@ class FMDiffAE(nn.Module):
                     self._add_dims(sigma_next, batch_size),
                     z=z,
                     cfg_scale=cfg_scale,
+                    blend_weights=blend_weights,
                 )
                 d = (d_curr + d_next) / 2
 
@@ -132,7 +140,8 @@ class FMDiffAE(nn.Module):
 
         return x_curr
 
-    def _add_dims(self, x, batch_size=1):
+    def _add_dims(self, x, batch_size):
+        assert x.ndim < 2
         if x.ndim == 0 or x.shape[0] != batch_size:
             x = x.expand(batch_size)
         return x.view((batch_size,) + (1,) * len(self.datashape))
@@ -150,19 +159,46 @@ class FMDiffAE(nn.Module):
         net_in = torch.cat((c_in * x, z), dim=1)
         return c_skip * x + c_out * self.decoder(net_in, c_noise)
 
-    def _get_derivative(self, x, sigma, z, cfg_scale=1.0):
-        if cfg_scale == 1.0:
-            denoised = self._denoise(x, sigma=sigma, z=z)
+    def _get_derivative(self, x, sigma, z, cfg_scale=1.0, blend_weights=None):
+        batch_size = x.shape[0]
+        num_conditions = z.shape[0]
+        assert sigma.shape[0] == batch_size
+
+        if blend_weights is None:
+            assert num_conditions == batch_size
         else:
-            x_expanded = torch.cat((x, x), dim=0)
-            sigma_expanded = torch.cat((sigma, sigma), dim=0)
-            z_expanded = torch.cat((z, torch.zeros_like(z)), dim=0)
+            assert blend_weights.shape[0] == num_conditions
+            assert batch_size == 1
 
-            denoised_cond, denoised_uncond = self._denoise(
-                x_expanded, sigma=sigma_expanded, z=z_expanded
-            ).chunk(2, dim=0)
+        if cfg_scale == 1.0:
+            # N - batch size for the denoiser.
+            N = num_conditions
+        else:
+            N = num_conditions + batch_size
+            z = torch.cat((z, torch.zeros((batch_size, *z.shape[1:]), device=z.device)))
 
-            # Mixing denoised is the same as mixing derivatives
+        # R - number of times to duplicate x and sigma
+        R = int(N / batch_size)
+
+        x_expanded = x.unsqueeze(0).expand(R, *x.shape).view(-1, *x.shape[1:])
+        sigma_expanded = (
+            sigma.unsqueeze(0).expand(R, *sigma.shape).view(-1, *sigma.shape[1:])
+        )
+
+        denoised_expanded = self._denoise(x_expanded, sigma=sigma_expanded, z=z)
+        denoised_cond = denoised_expanded[:num_conditions]
+
+        if blend_weights is not None:
+            denoised_cond = torch.sum(
+                denoised_cond * self._add_dims(blend_weights, blend_weights.shape[0]),
+                dim=0,
+                keepdim=True,
+            )
+
+        if cfg_scale != 1.0:
+            denoised_uncond = denoised_expanded[-batch_size:]
             denoised = denoised_uncond + cfg_scale * (denoised_cond - denoised_uncond)
+        else:
+            denoised = denoised_cond
 
         return (x - denoised) / sigma

@@ -116,8 +116,8 @@ class GenerateExamples(Callback):
             inputs=inputs,
             lows=lows,
             highs=highs,
-            num_steps=self.num_steps,
             cfg_scale=self.cfg_scale,
+            num_steps=self.num_steps,
             pbar=self.pbar,
         )
 

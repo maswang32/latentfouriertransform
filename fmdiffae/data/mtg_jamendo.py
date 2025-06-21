@@ -56,6 +56,7 @@ if __name__ == "__main__":
 
     # Below code orients us within our filesystem - edit this based on where your directories are.
     raw_base_dir = "/data/hai-res/shared/datasets/mtg-jamendo/raw"
+    # directory to all processed versions of the dataset
     save_base_dir = "/data/hai-res/ycda/processed-datasets/mtg-jamendo"
 
     if args.only_inst_tagged:

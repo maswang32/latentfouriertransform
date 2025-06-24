@@ -1,10 +1,13 @@
 import os
 import csv
 import glob
-import webdataset as wds
 import argparse
+import numpy as np
+import webdataset as wds
 from tqdm import tqdm
 from fmdiffae.data.data_utils import save_webdataset
+from fmdiffae.utils.fad import get_embeddings_vggish
+from fmdiffae.data.data_utils import get_webdataset
 
 
 def load_jamendo_tsv(tsv_path):
@@ -52,6 +55,18 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--chunk_length_samples",
+        help="Length of each data chunk in samples",
+        type=int,
+        default=65536,
+    )
+    parser.add_argument(
+        "--wds_maxcount",
+        help="Num. Examples in each .tar file",
+        type=int,
+        default=8192,
+    )
     args = parser.parse_args()
 
     # Below code orients us within our filesystem - edit this based on where your directories are.
@@ -82,7 +97,7 @@ if __name__ == "__main__":
             records = [x for x in records if "instrument---voice" not in x["tags"]]
 
         total_duration = sum([x["duration"] for x in records]) / (3600)
-        print(f"Total Length for {split}: {total_duration:.3f} Hours")
+        print(f"Total length for {split}: {total_duration:.3f} Hr. Before Process")
 
         rel_audio_paths = [x["path"] for x in records]
 
@@ -98,15 +113,12 @@ if __name__ == "__main__":
             audio_paths=audio_paths,
             audio_names=audio_names,
             save_dir=split_dir,
-            maxcount=8192,
+            maxcount=args.wds_maxcount,
             transform_kwargs={"load_model_on_init": False},
+            chunk_audio_kwargs={"chunk_length_samples": args.chunk_length_samples},
         )
 
-    # # Save VGGish Emebddings
-    import numpy as np
-    from fmdiffae.utils.fad import get_embeddings_vggish
-    from fmdiffae.data.data_utils import get_webdataset
-
+    # Save VGGish Embeddings
     valid_dataset = get_webdataset(split="valid", base_dir=save_dir, data_type="audio")
     valid_vggish_embeddings = get_embeddings_vggish(valid_dataset, pbar=True)
 
@@ -126,7 +138,7 @@ if __name__ == "__main__":
     shard_paths = sorted(glob.glob(os.path.join(save_dir, "valid", "data-*.tar")))
     valid_dataset = (
         wds.WebDataset(shard_paths, resampled=False, shardshuffle=True)
-        .shuffle(8192)
+        .shuffle(args.wds_maxcount)
         .decode()
     )
 
@@ -141,8 +153,8 @@ if __name__ == "__main__":
                 print(song_id)
                 valid_subset_audio.append(example["audio.npy"])
                 valid_subset_spec.append(example["spec.npy"])
-
                 seen_song_ids.add(song_id)
+
                 if len(valid_subset_audio) >= 2048:
                     break
 

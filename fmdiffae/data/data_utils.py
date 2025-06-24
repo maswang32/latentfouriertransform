@@ -101,7 +101,7 @@ def save_webdataset(
 
             for j, (chunk, spec) in enumerate(zip(chunks, specs)):
                 key = f"{audio_names[i]}_{j:05d}"
-                sink.write({"__key__": key, "audio.npy": chunk, "spec.npy":spec})
+                sink.write({"__key__": key, "audio.npy": chunk, "spec.npy": spec})
 
 
 def get_webdataset(
@@ -122,16 +122,14 @@ def get_webdataset(
         )
 
     dataset = dataset.decode()
-    
-    if data_type =="both":
-        dataset = (
-            dataset.to_tuple("audio.npy", "spec.npy")
-            .map_tuple(torch.from_numpy, torch.from_numpy)
+
+    if data_type == "both":
+        dataset = dataset.to_tuple("audio.npy", "spec.npy").map_tuple(
+            torch.from_numpy, torch.from_numpy
         )
     else:
         dataset = (
-            dataset
-            .to_tuple(f"{data_type}.npy")
+            dataset.to_tuple(f"{data_type}.npy")
             .map_tuple(torch.from_numpy)
             .map(lambda x: x[0])
         )

@@ -10,8 +10,8 @@ hydra:
 
 # Imports
 defaults:
-  - data: mtg_jamendo
-  - model: default
+  - data: mtg_jamendo_3s
+  - model: 3s
   - callbacks: default
   - _self_
 

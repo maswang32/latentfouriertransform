@@ -24,7 +24,7 @@ def resample(x, fs_orig, fs_target):
 
 def chunk_audio(
     audio_path,
-    chunk_length_samples=65536,
+    chunk_length_samples,
     fs_target=22050,
     energy_threshold=0.003,
 ):
@@ -70,9 +70,9 @@ def save_webdataset(
     audio_paths,
     audio_names,
     save_dir,
+    maxcount,  # for 256 x 80 specs + 65536 audio, 8192 is 2.8 GB/shard
     shuffle=True,
     random_seed=7,
-    maxcount=8192,  # for 256 x 80 specs + 65536 audio, this is 2.8 GB/shard
     pattern="data-%06d.tar",
     transform_cls=BigVGANTransform,
     transform_kwargs=None,
@@ -105,10 +105,10 @@ def save_webdataset(
 
 
 def get_webdataset(
-    split="train",
-    base_dir="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full",
-    data_type="spec",
-    shuffle_size=2048,
+    split,
+    base_dir,
+    data_type,
+    shuffle_size,
 ):
     shard_paths = sorted(glob.glob(os.path.join(base_dir, split, "data-*.tar")))
 

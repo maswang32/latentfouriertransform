@@ -1,6 +1,6 @@
 defaults:
   - encoder: pointwise
-  - freq_mask: group_fft_mask
+  - freq_mask: correlated_fft_mask
   - _self_
 
 _target_: fmdiffae.diffusion.fmdiffae.FMDiffAE

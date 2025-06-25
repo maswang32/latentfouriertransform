@@ -9,7 +9,7 @@ class FMDiffAE(nn.Module):
         encoder,
         decoder,
         freq_mask,
-        datashape=[80, 256],
+        datashape,
         sigma_data=0.5,
         use_tanh=False,
     ):

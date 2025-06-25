@@ -1,5 +1,5 @@
 _target_: fmdiffae.arc.correlated_fft_mask.CorrelatedFFTMask
-n_fft: 256
+n_fft: 1024
 sigma: 0.5
 p: 2
 eps: 1e-6

@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class CorrelatedFFTMask(nn.Module):
-    def __init__(self, n_fft=256, sigma=0.5, p=2, eps=1e-6):
+    def __init__(self, n_fft=1024, sigma=0.5, p=2, eps=1e-6):
         super().__init__()
         assert math.log2(n_fft).is_integer(), "n_fft must be a power of 2"
 

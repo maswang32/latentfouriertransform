@@ -268,7 +268,7 @@ class EmbeddingNetwork(nn.Module):
 class UNet1d(nn.Module):
     def __init__(
         self,
-        data_resolution=256,
+        data_resolution,
         in_channels=80,
         out_channels=80,
         model_dim=256,

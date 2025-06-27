@@ -52,7 +52,7 @@ class FMDiffAEModule(L.LightningModule):
     def _init_ema_model(self):
         self.ema_model = AveragedModel(
             self.model, multi_avg_fn=get_ema_multi_avg_fn(self.hparams.ema_decay)
-        )
+        ).to(self.device)
 
     @classmethod
     def load_torch_model(cls, ckpt_path, strict=True):

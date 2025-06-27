@@ -8,6 +8,10 @@ checkpoint:
   save_top_k: 1
   save_last: True
 
+lr_monitor:
+  _target_: lightning.pytorch.callbacks.LearningRateMonitor
+  logging_interval: step
+
 plot_feature_map:
   _target_: fmdiffae.training.callbacks.PlotFeatureMap
   valid_idx: null

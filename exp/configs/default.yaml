@@ -13,6 +13,7 @@ defaults:
   - data: mtg_jamendo_3s
   - model: 3s
   - callbacks: default
+  - scheduler: warmup
   - _self_
 
 # Custom Params
@@ -42,12 +43,6 @@ trainer:
 optimizer:
   _target_: torch.optim.Adam
   lr: 1e-4
-
-scheduler:
-  _target_: torch.optim.lr_scheduler.LinearLR
-  start_factor: 0.01
-  end_factor: 1.0
-  total_iters: 4000
 
 # Logger
 logger:

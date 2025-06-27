@@ -119,7 +119,9 @@ if __name__ == "__main__":
         )
 
     # Save VGGish Embeddings
-    valid_dataset = get_webdataset(split="valid", base_dir=save_dir, data_type="audio")
+    valid_dataset = get_webdataset(
+        split="valid", base_dir=save_dir, data_type="audio", shuffle_size=None
+    )
     valid_vggish_embeddings = get_embeddings_vggish(valid_dataset, pbar=True)
 
     valid_vggish_embeddings = valid_vggish_embeddings.numpy().reshape(-1, 128)

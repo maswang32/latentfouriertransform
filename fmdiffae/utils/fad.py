@@ -21,8 +21,7 @@ def get_embeddings_vggish(x, fs=22050, pbar=False):
             embeddings.append(
                 model.forward(
                     vggish_input.waveform_to_examples(
-                        example.numpy().reshape(-1),
-                        sample_rate=fs,
+                        example.numpy().reshape(-1), sample_rate=fs
                     )
                 )
             )

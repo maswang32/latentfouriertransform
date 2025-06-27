@@ -31,4 +31,4 @@ valid_dataloader:
 
 transform:
   _target_: fmdiffae.transforms.bigvgan_transform.BigVGANTransform
-  batch_size: 256
+  batch_size: 128

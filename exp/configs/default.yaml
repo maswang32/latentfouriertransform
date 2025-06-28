@@ -32,10 +32,11 @@ trainer:
   max_steps: 10000000
   devices: 1
   accelerator: gpu
+  strategy: ddp
   precision: bf16-mixed
   enable_checkpointing: True
   limit_val_batches: 1.0        # Full valid set
-  val_check_interval: 1000
+  val_check_interval: 3000
   gradient_clip_val: 1.0
   num_sanity_val_steps: 0
 

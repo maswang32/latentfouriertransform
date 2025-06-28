@@ -161,6 +161,7 @@ class FADAndReconstruction(Callback):
         pbar = self.pbar and rank == 0
 
         print("rank", rank)
+        print("world size", trainer.world_size)
         # Batching
         num_total_samples = self.num_samples * self.num_low_highs
         assert num_total_samples % batch_size == 0, (

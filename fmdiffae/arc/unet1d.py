@@ -73,7 +73,7 @@ class Conv1d(nn.Module):
         if (up or down) and resample:
             resample_filter = torch.ones(1, 1, 2) / 2
             resample_filter = resample_filter.expand(in_channels, 1, 2)
-            self.register_buffer("resample_filter", resample_filter)
+            self.register_buffer("resample_filter", resample_filter, persistent=False)
 
         # Actual Convolution
         if kernel_size:
@@ -244,7 +244,7 @@ class PositionalEncoding(nn.Module):
         angular_freqs = torch.logspace(
             0, 1, steps=num_freqs, base=min_angular_frequency
         )
-        self.register_buffer("angular_freqs", angular_freqs)
+        self.register_buffer("angular_freqs", angular_freqs, persistent=False)
 
     def forward(self, x):
         x = x.view(-1, 1) * self.angular_freqs.reshape(1, -1)

@@ -12,7 +12,7 @@ class CorrelatedFFTMask(nn.Module):
         self.F = n_fft // 2 + 1  # rfft length
 
         self.register_buffer(
-            "v", torch.linspace(0, 1, self.F)
+            "v", torch.linspace(0, 1, self.F), persistent=False
         )  # Normalized Frequencies
 
         self.log_v = torch.log(self.v + eps)  # Normalized freqs in log space
@@ -22,7 +22,7 @@ class CorrelatedFFTMask(nn.Module):
             -0.5 * ((torch.abs(self.log_v[:, None] - self.log_v[None, :]) / sigma) ** p)
         )
         k = k / torch.sqrt(torch.sum(k**2, axis=0, keepdim=True))
-        self.register_buffer("k", k)
+        self.register_buffer("k", k, persistent=False)
 
     def forward(self, x, lows=None, highs=None):
         assert x.ndim == 3, "x must have 3 dimensions"

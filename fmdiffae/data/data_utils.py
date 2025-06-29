@@ -114,17 +114,11 @@ def get_webdataset(
 
     if split == "train":
         dataset = wds.WebDataset(
-            shard_paths,
-            resampled=True,
-            nodesplitter=wds.split_by_node,
-            shardshuffle=True,
+            shard_paths, resampled=True, nodesplitter=wds.split_by_node
         ).shuffle(shuffle_size)
     else:
         dataset = wds.WebDataset(
-            shard_paths,
-            resampled=False,
-            nodesplitter=wds.split_by_node,
-            shardshuffle=False,
+            shard_paths, resampled=False, nodesplitter=wds.split_by_node
         )
 
     dataset = dataset.decode()

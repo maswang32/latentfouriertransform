@@ -54,6 +54,9 @@ class FMDiffAEModule(L.LightningModule):
             self.model, multi_avg_fn=get_ema_multi_avg_fn(self.hparams.ema_decay)
         ).to(self.device)
 
+        self.ema_model.requires_grad_(False)
+        self.ema_model.eval()
+
     @classmethod
     def load_torch_model(cls, ckpt_path, strict=True):
         lit = cls.load_from_checkpoint(ckpt_path, strict=strict)

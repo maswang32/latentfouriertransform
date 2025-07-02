@@ -42,6 +42,8 @@ class BigVGANTransform:
             "nvidia/" + self.model_name, use_cuda_kernel=False
         )
         self.model.remove_weight_norm()
+        self.model.requires_grad_(False)
+        self.model.eval()
 
     def __call__(self, x):
         """

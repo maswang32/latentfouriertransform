@@ -17,7 +17,7 @@ def main(config):
 
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
 
-    # Finding where we should load the checkpoint
+    # Find where we should load the checkpoint
     if config.ckpt_path is not None:
         ckpt_path = config.ckpt_path
         print(f"Resuming from provided checkpoint: {ckpt_path}")

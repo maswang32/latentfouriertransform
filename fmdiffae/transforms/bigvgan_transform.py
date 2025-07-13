@@ -31,6 +31,7 @@ class BigVGANTransform:
             self.hop_size = 256
             self.win_size = 1024
             self.fmin = 0
+            self.nyq = 0.5 * (self.sampling_rate / self.hop_size)
         else:
             raise NotImplementedError
 

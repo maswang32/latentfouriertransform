@@ -125,14 +125,11 @@ class GenerateExamples(Callback):
         audios = audios.cpu().numpy()
         samples = samples.clamp_(-1, 1).add_(1).div_(2).cpu().numpy()
         rows = []
-
-        nyq = pl_module.transform.nyq
-
         for (low, high), sample, audio in zip(self.low_highs, samples, audios):
             rows.append(
                 [
                     f"{low:.4f}-{high:.4f}",
-                    wandb.Image(sample, caption=f"{nyq * low:.4f}-{nyq * high:.4f} Hz"),
+                    wandb.Image(sample, caption=f"{low:.4f}-{high:.4f} Hz"),
                     wandb.Audio(audio, sample_rate=trainer.datamodule.sample_rate),
                 ]
             )
@@ -252,13 +249,9 @@ class FADAndReconstruction(Callback):
             for x in embs
         ]
 
-        nyq = pl_module.transform.nyq
-        fad_names = [
-            f"FAD/{nyq * low:.4f}-{nyq * high:.4f} Hz" for (low, high) in self.low_highs
-        ]
+        fad_names = [f"FAD/{low:.4f}-{high:.4f} Hz" for (low, high) in self.low_highs]
         mse_names = [
-            f"Recon_MSE/{nyq * low:.4f}-{nyq * high:.4f} Hz"
-            for (low, high) in self.low_highs
+            f"Recon_MSE/{low:.4f}-{high:.4f} Hz" for (low, high) in self.low_highs
         ]
 
         metrics = {

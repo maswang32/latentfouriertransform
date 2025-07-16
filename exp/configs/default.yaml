@@ -10,8 +10,8 @@ hydra:
 
 # Imports
 defaults:
-  - data: mtg_jamendo_3s
-  - model: 3s
+  - data: mtg_jamendo_5s
+  - model: 5s
   - callbacks: default
   - scheduler: warmup
   - _self_
@@ -29,7 +29,7 @@ strict_loading: True
 trainer:
   _target_: lightning.pytorch.Trainer
   default_root_dir: ${run_dir}
-  max_steps: 10000000
+  max_steps: 300000
   devices: 1
   accelerator: gpu
   strategy: ddp

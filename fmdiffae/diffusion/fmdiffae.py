@@ -27,12 +27,10 @@ class FMDiffAE(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.sigma_data = sigma_data
-        self.datashape = datashape
-        assert len(datashape) > 0
-
-        self.use_tanh = use_tanh
         self.freq_mask = freq_mask
+        self.datashape = datashape
+        self.sigma_data = sigma_data
+        self.use_tanh = use_tanh
 
     def forward(self, y, P_mean=-1.2, P_std=1.2):
         batch_size = y.shape[0]

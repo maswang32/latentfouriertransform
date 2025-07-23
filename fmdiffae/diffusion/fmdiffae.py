@@ -178,9 +178,9 @@ class FMDiffAE(nn.Module):
         # R - number of times to duplicate x and sigma
         R = int(N / batch_size)
 
-        x_expanded = x.unsqueeze(0).expand(R, *x.shape).view(-1, *x.shape[1:])
+        x_expanded = x.unsqueeze(0).expand(R, *x.shape).reshape(-1, *x.shape[1:])
         sigma_expanded = (
-            sigma.unsqueeze(0).expand(R, *sigma.shape).view(-1, *sigma.shape[1:])
+            sigma.unsqueeze(0).expand(R, *sigma.shape).reshape(-1, *sigma.shape[1:])
         )
 
         denoised_expanded = self._denoise(x_expanded, sigma=sigma_expanded, z=z)

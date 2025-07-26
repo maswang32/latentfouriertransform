@@ -25,7 +25,7 @@ class CorrelatedFFTMask(nn.Module):
         self.register_buffer("k", k, persistent=False)
 
     def forward(self, x, lows=None, highs=None):
-        assert x.ndim == 3, "x must have 3 dimensions"
+        assert x.ndim == 3, "input to fftmask must have 3 dimensions"
         assert (lows is None) == (highs is None)
 
         batch_size, length = x.shape[0], x.shape[-1]

@@ -102,7 +102,11 @@ class FMDiffAE(nn.Module):
                 blend_weights = torch.tensor(blend_weights, dtype=dtype, device=device)
             else:
                 blend_weights = blend_weights.to(dtype=dtype, device=device)
+
             num_to_blend = blend_weights.shape[-1]
+            blend_weights = blend_weights / torch.sum(
+                blend_weights, dim=-1, keepdim=True
+            )
 
         # Apply Frequency Masking to zs
         if lows is not None:

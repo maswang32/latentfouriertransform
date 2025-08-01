@@ -1,0 +1,12 @@
+_target_: fmdiffae.arc.unet1d.UNet1d
+data_resolution: 512
+in_channels: 80
+out_channels: 80
+model_dim: 256
+channel_mults: [2, 2, 2, 3, 3, 4]  # Res 512, 256, 128, 64, 32, 16
+num_blocks_per_res: 4
+kernel_size: 3
+dilation_sequence: [1, 1, 1, 1, 1]
+use_attention: True
+attn_resolutions: [64, 32, 16]
+use_t: False

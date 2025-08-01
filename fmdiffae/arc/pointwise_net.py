@@ -10,7 +10,7 @@ class PointwiseNet(nn.Module):
         self,
         in_channels=80,
         out_channels=16,
-        hidden_channels=[512, 512, 512, 512, 512, 512, 512],
+        hidden_channels=[512, 512, 512, 512, 512, 512, 512, 512],
     ):
         super().__init__()
         self.hidden_channels = hidden_channels

@@ -1,4 +1,4 @@
 _target_: fmdiffae.arc.pointwise_net.PointwiseNet
 in_channels: 80
 out_channels: 80
-hidden_channels: [512, 512, 512, 512, 512, 512, 512]
+hidden_channels: [512, 512, 512, 512, 512, 512, 512, 512]

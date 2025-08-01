@@ -5,6 +5,7 @@ import wandb
 from hydra.utils import instantiate
 from fmdiffae.training.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.training.lit_data_module import BaseDataModule
+from lightning import seed_everything
 
 
 @hydra.main(
@@ -13,6 +14,7 @@ from fmdiffae.training.lit_data_module import BaseDataModule
     config_name="default",
 )
 def main(config):
+    seed_everything(config.seed, workers=True)
     wandb.login(key="2ed9110b61c4bd8c0534e383f5373cd0cc7919af")
 
     torch.set_float32_matmul_precision(config.float32_matmul_precision)

@@ -18,7 +18,7 @@ from fmdiffae.arc.unet1d import Conv1d, ConvBlock
 from fmdiffae.training.lit_data_module import BaseDataModule
 
 
-class Classifier(nn.Module):
+class CNNClassifier(nn.Module):
     def __init__(
         self,
         data_resolution=512,
@@ -63,7 +63,7 @@ class Classifier(nn.Module):
 
         # Print number of params
         self.num_params = sum(p.numel() for p in self.parameters())
-        print(f"Classifier Number of Parameters:  {self.num_params}")
+        print(f"CNN Classifier Number of Parameters:  {self.num_params}")
 
     def forward(self, x):
         for name, module in self.enc.items():
@@ -136,11 +136,11 @@ class ClassifierModule(L.LightningModule):
         self.model = instantiate(config.model)
 
         self.train_accuracy = Accuracy(
-            task="multiclass", num_classes=config.model.num_classes
+            task="multiclass", num_classes=config.data.num_classes
         )
 
         self.valid_accuracy = Accuracy(
-            task="multiclass", num_classes=config.model.num_classes
+            task="multiclass", num_classes=config.data.num_classes
         )
 
     def configure_optimizers(self):

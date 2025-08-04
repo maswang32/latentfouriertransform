@@ -1,12 +1,11 @@
-_target_: reproduce_results.classification.classification.Classifier
+_target_: reproduce_results.classification.classification.CNNClassifier
 data_resolution: 512
 in_channels: 80
 num_classes: 10
-model_dim: 128
+model_dim: 80
 channel_mults: [1, 1, 1, 1, 1, 2]  # 512, 256, 128, 64, 32, 16
 num_blocks_per_res: 1
 kernel_size: 3
 use_attention: True
 attn_resolutions: [32, 16, 8]
 num_heads: 1
-

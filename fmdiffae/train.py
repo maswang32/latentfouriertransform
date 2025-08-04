@@ -3,9 +3,9 @@ import torch
 import hydra
 import wandb
 from hydra.utils import instantiate
+from lightning import seed_everything
 from fmdiffae.training.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.training.lit_data_module import BaseDataModule
-from lightning import seed_everything
 
 
 @hydra.main(

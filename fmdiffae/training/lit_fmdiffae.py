@@ -8,7 +8,7 @@ class FMDiffAEModule(L.LightningModule):
     def __init__(self, config):
         super().__init__()
 
-        # Allows providing in regular dicts without blowing up instantiate
+        # Allows providing regular dicts without blowing up instantiate
         if not isinstance(config, DictConfig):
             config = OmegaConf.create(config)
 

@@ -1,0 +1,25 @@
+batch_size: ${batch_size}
+
+train_dataset:
+  _target_: reproduce_results.classification.classification.ClassificationDataset
+  data_path: /data/hai-res/ycda/processed-datasets/gtzan/train_spec.npy
+  labels_path: /data/hai-res/ycda/processed-datasets/gtzan/train_genre.npy
+
+valid_dataset:
+  _target_: reproduce_results.classification.classification.ClassificationDataset
+  data_path: /data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy
+  labels_path: /data/hai-res/ycda/processed-datasets/gtzan/valid_genre.npy
+
+train_dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False
+
+valid_dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False

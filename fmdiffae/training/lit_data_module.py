@@ -8,8 +8,10 @@ class BaseDataModule(L.LightningDataModule):
         self.save_hyperparameters(data_config)
         self.train_ds = None
         self.valid_ds = None
-        self.sample_rate = data_config.sample_rate
         self.batch_size = data_config.batch_size
+
+        if "sample_rate" in data_config:
+            self.sample_rate = data_config.sample_rate
 
     def setup(self, stage=None):
         if stage in (None, "fit"):

@@ -13,3 +13,6 @@ old
 exp/runs
 exp/slurm
 exp/logs
+
+# Experiment Checkpoints
+reproduce_results/classification/exp/runs

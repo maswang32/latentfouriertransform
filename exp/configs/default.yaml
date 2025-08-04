@@ -3,7 +3,7 @@ ckpt_path: null
 load_last_if_avail: True
 
 # Save Directories
-run_dir: exp/runs/${name}
+run_dir: ../exp/runs/${name}
 hydra:
   run:
     dir: ${run_dir}

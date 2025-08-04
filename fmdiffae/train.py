@@ -10,7 +10,7 @@ from lightning import seed_everything
 
 @hydra.main(
     version_base=None,
-    config_path="exp/configs",
+    config_path="../exp/configs",
     config_name="default",
 )
 def main(config):

@@ -137,7 +137,7 @@ class GroupNorm(nn.Module):
         return self.gn.__repr__()
 
 
-class UNetBlock(nn.Module):
+class ConvBlock(nn.Module):
     def __init__(
         self,
         in_channels,
@@ -347,13 +347,13 @@ class UNet1d(nn.Module):
         enc_outs = {}
 
         for name, module in self.enc.items():
-            x = module(x, emb) if isinstance(module, UNetBlock) else module(x)
+            x = module(x, emb) if isinstance(module, ConvBlock) else module(x)
             enc_outs[name] = x
 
         for name, module in self.dec.items():
             if name in self.skip_dict:
                 x = torch.cat((x, enc_outs[self.skip_dict[name]]), dim=-2)
-            x = module(x, emb) if isinstance(module, UNetBlock) else module(x)
+            x = module(x, emb) if isinstance(module, ConvBlock) else module(x)
 
         return x
 
@@ -377,7 +377,7 @@ class UNet1d(nn.Module):
             else:
                 res_in_channels = self.channel_mults[level - 1] * self.model_dim
 
-                self.enc[f"{res * 2}->{res}_down"] = UNetBlock(
+                self.enc[f"{res * 2}->{res}_down"] = ConvBlock(
                     in_channels=res_in_channels,
                     out_channels=res_in_channels,
                     down=True,
@@ -389,7 +389,7 @@ class UNet1d(nn.Module):
                     res_in_channels if block_idx == 0 else res_out_channels
                 )
 
-                self.enc[f"{res}_block{block_idx}"] = UNetBlock(
+                self.enc[f"{res}_block{block_idx}"] = ConvBlock(
                     in_channels=block_in_channels,
                     out_channels=res_out_channels,
                     use_attention=(res in self.attn_resolutions) and self.use_attention,
@@ -410,14 +410,14 @@ class UNet1d(nn.Module):
             if level == self.num_levels - 1:
                 res_in_channels = self.model_dim * self.channel_mults[level]
 
-                self.dec[f"{res}_in0"] = UNetBlock(
+                self.dec[f"{res}_in0"] = ConvBlock(
                     in_channels=res_in_channels,
                     out_channels=res_in_channels,
                     use_attention=self.use_attention,
                     **self.block_kwargs,
                 )
 
-                self.dec[f"{res}_in1"] = UNetBlock(
+                self.dec[f"{res}_in1"] = ConvBlock(
                     in_channels=res_in_channels,
                     out_channels=res_in_channels,
                     use_attention=False,
@@ -427,7 +427,7 @@ class UNet1d(nn.Module):
             else:
                 res_in_channels = self.model_dim * self.channel_mults[level + 1]
 
-                self.dec[f"{res // 2}->{res}_up"] = UNetBlock(
+                self.dec[f"{res // 2}->{res}_up"] = ConvBlock(
                     in_channels=res_in_channels,
                     out_channels=res_in_channels,
                     use_attention=False,
@@ -450,7 +450,7 @@ class UNet1d(nn.Module):
                         + self.enc[self.skip_dict[block_name]].out_channels
                     )
 
-                self.dec[block_name] = UNetBlock(
+                self.dec[block_name] = ConvBlock(
                     in_channels=block_in_channels,
                     out_channels=res_out_channels,
                     use_attention=(res in self.attn_resolutions)

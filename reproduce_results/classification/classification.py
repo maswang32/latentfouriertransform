@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 import hydra
@@ -9,6 +10,7 @@ from omegaconf import OmegaConf, DictConfig
 
 import lightning as L
 from lightning import seed_everything
+from torchmetrics import Accuracy
 
 import wandb
 
@@ -133,26 +135,52 @@ class ClassifierModule(L.LightningModule):
         self.save_hyperparameters(OmegaConf.to_container(config, resolve=True))
         self.model = instantiate(config.model)
 
+        self.train_accuracy = Accuracy(
+            task="multiclass", num_classes=config.model.num_classes
+        )
+
+        self.valid_accuracy = Accuracy(
+            task="multiclass", num_classes=config.model.num_classes
+        )
+
     def configure_optimizers(self):
         optimizer = instantiate(self.hparams.optimizer, params=self.model.parameters())
         return optimizer
 
-    def compute_loss(self, batch):
+    def compute_loss_and_preds(self, batch):
         x, y = batch
         logits = self(x)
-        return nn.functional.cross_entropy_loss(logits, y)
+        loss = F.cross_entropy(logits, y)
+        preds = torch.argmax(logits, dim=1)
+        return loss, preds, y
 
-    def training(self, batch):
-        loss = self.compute_loss(self, batch)
+    def training_step(self, batch):
+        loss, preds, y = self.compute_loss_and_preds(batch)
+        self.train_accuracy(preds, y)
         self.log("loss/train", loss, prog_bar=True, on_step=True, on_epoch=False)
+        self.log(
+            "accuracy/train",
+            self.train_accuracy,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=False,
+        )
         return loss
 
     def forward(self, x, *args, **kwargs):
         return self.model(x, *args, **kwargs)
 
     def validation_step(self, batch):
-        loss = self.compute_loss(self, batch)
+        loss, preds, y = self.compute_loss_and_preds(batch)
+        self.valid_accuracy(preds, y)
         self.log("loss/valid", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "accuracy/valid",
+            self.valid_accuracy,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
         return loss
 
 
@@ -177,7 +205,7 @@ def main(config):
     )
 
     trainer = instantiate(config.trainer, logger=logger)
-    trainer.fit(lit_module, data_module, ckpt_path=config.ckpt_path)
+    trainer.fit(lit_module, datamodule=data_module, ckpt_path=config.ckpt_path)
 
 
 if __name__ == "__main__":

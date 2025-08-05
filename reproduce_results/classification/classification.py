@@ -183,6 +183,11 @@ class ClassifierModule(L.LightningModule):
         )
         return loss
 
+    @classmethod
+    def load_torch_model(cls, ckpt_path, strict=True):
+        lit = cls.load_from_checkpoint(ckpt_path, strict=strict)
+        return lit.model
+
 
 @hydra.main(
     version_base=None,

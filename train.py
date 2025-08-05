@@ -10,7 +10,7 @@ from fmdiffae.training.lit_data_module import BaseDataModule
 
 @hydra.main(
     version_base=None,
-    config_path="../exp/configs",
+    config_path="exp/configs",
     config_name="default",
 )
 def main(config):

@@ -65,6 +65,7 @@ class FMDiffAE(nn.Module):
         zs=None,
         lows=None,
         highs=None,
+        fft_mask=None,
         cfg_scale=1.0,
         blend_weights=None,
         num_steps=35,
@@ -78,11 +79,14 @@ class FMDiffAE(nn.Module):
         Note: if self.use_tanh is true, and zs are passed instead of inputs,
             tanh must be applied before passing zs.
         """
-        # Require inputs xor latents as condition
-        assert (inputs is not None) ^ (zs is not None)
+        if (inputs is None) == (zs is None):
+            raise ValueError("Exactly one of `inputs` or `zs` must be provided")
 
-        # Both lows and highs must be specified, or neither
-        assert (lows is not None) == (highs is not None)
+        if (lows is None) != (highs is None):
+            raise ValueError("Both `lows` and `highs` must be provided together")
+
+        if lows is not None and fft_mask is not None:
+            raise ValueError("Cannot pass both `fft_mask` and `lows`/`highs`ss")
 
         # Compute zs if necessary, and flatten/squeeze them
         if zs is None:
@@ -109,17 +113,34 @@ class FMDiffAE(nn.Module):
             )
 
         # Apply Frequency Masking to zs
-        if lows is not None:
+        if lows is not None or fft_mask is not None:
             zs = zs.view(-1, *z_shape)
 
-            if not isinstance(lows, torch.Tensor):
-                lows = torch.tensor(lows, dtype=dtype, device=device)
-                highs = torch.tensor(highs, dtype=dtype, device=device)
-            else:
-                lows = lows.to(dtype=dtype, device=device)
-                highs = highs.to(dtype=dtype, device=device)
+            if lows is not None:
+                if not isinstance(lows, torch.Tensor):
+                    lows = torch.tensor(lows, dtype=dtype, device=device)
+                    highs = torch.tensor(highs, dtype=dtype, device=device)
+                else:
+                    lows = lows.to(dtype=dtype, device=device)
+                    highs = highs.to(dtype=dtype, device=device)
 
-            zs = self.freq_mask(zs, lows=lows.view(-1), highs=highs.view(-1))
+                lows = lows.view(-1)
+                highs = highs.view(-1)
+
+            if fft_mask is not None:
+                if not isinstance(fft_mask, torch.Tensor):
+                    fft_mask = torch.tensor(fft_mask, device=device)
+                else:
+                    fft_mask = fft_mask.to(device=device)
+
+                fft_mask = fft_mask.view(-1, fft_mask.shape[-1])
+
+            zs = self.freq_mask(
+                zs,
+                lows=lows,
+                highs=highs,
+                fft_mask=fft_mask,
+            )
 
         # Full Shape
         zs = zs.view(-1, num_to_blend, *z_shape)

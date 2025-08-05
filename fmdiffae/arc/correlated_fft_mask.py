@@ -24,24 +24,25 @@ class CorrelatedFFTMask(nn.Module):
         k = k / torch.sqrt(torch.sum(k**2, axis=0, keepdim=True))
         self.register_buffer("k", k, persistent=False)
 
-    def forward(self, x, lows=None, highs=None):
+    def forward(self, x, lows=None, highs=None, fft_mask=None):
         assert x.ndim == 3, "input to fftmask must have 3 dimensions"
         assert (lows is None) == (highs is None)
 
         batch_size, length = x.shape[0], x.shape[-1]
         device, dtype = x.device, x.dtype
 
-        if lows is None:
-            scores = (
-                torch.randn(batch_size, self.F, device=device, dtype=dtype) @ self.k
-            )
-            thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
-            fft_mask = (scores > thresholds).to(dtype)
-        else:
-            fft_mask = (
-                (self.v >= lows.unsqueeze(1)) & (self.v <= highs.unsqueeze(1))
-            ).to(dtype)
+        if fft_mask is None:
+            if lows is None:
+                scores = (
+                    torch.randn(batch_size, self.F, device=device, dtype=dtype) @ self.k
+                )
+                thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
+                fft_mask = scores > thresholds
+            else:
+                fft_mask = (self.v >= lows.unsqueeze(1)) & (
+                    self.v <= highs.unsqueeze(1)
+                )
 
         return torch.fft.irfft(
-            fft_mask.unsqueeze(1) * torch.fft.rfft(x.float(), n=self.n_fft),
+            fft_mask.to(dtype).unsqueeze(1) * torch.fft.rfft(x.float(), n=self.n_fft),
         ).to(dtype)[..., :length]

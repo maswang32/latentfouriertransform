@@ -68,6 +68,7 @@ class FMDiffAE(nn.Module):
         fft_mask=None,
         cfg_scale=1.0,
         blend_weights=None,
+        init_noise=None,
         num_steps=35,
         sigma_max=80,
         sigma_min=0.002,
@@ -179,10 +180,14 @@ class FMDiffAE(nn.Module):
             )
 
         # Initialize generation and noise levels
-        x_curr = (
-            torch.randn((batch_size, *self.datashape), dtype=dtype, device=device)
-            * sigma_max
-        )
+        if init_noise is None:
+            x_curr = (
+                torch.randn((batch_size, *self.datashape), dtype=dtype, device=device)
+                * sigma_max
+            )
+        else:
+            x_curr = init_noise.to(dtype=dtype, device=device)
+
         sigmas = (
             torch.linspace(
                 sigma_max ** (1 / rho),

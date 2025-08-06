@@ -13,11 +13,11 @@ lr_monitor:
   logging_interval: step
 
 plot_feature_map:
-  _target_: fmdiffae.training.callbacks.PlotFeatureMap
+  _target_: fmdiffae.lightning.callbacks.PlotFeatureMap
   valid_idx: null
 
 generate_examples:
-  _target_: fmdiffae.training.callbacks.GenerateExamples
+  _target_: fmdiffae.lightning.callbacks.GenerateExamples
   valid_idx: null
   num_steps: 100
   cfg_scale: 1.0
@@ -64,7 +64,7 @@ generate_examples:
   pbar: True
 
 fad_and_reconstruction:
-  _target_: fmdiffae.training.callbacks.FADAndReconstruction
+  _target_: fmdiffae.lightning.callbacks.FADAndReconstruction
   num_samples: 512
   num_steps: 35
   low_highs: 

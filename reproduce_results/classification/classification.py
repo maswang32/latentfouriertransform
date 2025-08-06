@@ -15,7 +15,7 @@ from torchmetrics import Accuracy
 import wandb
 
 from fmdiffae.arc.unet1d import Conv1d, ConvBlock
-from fmdiffae.training.lit_data_module import BaseDataModule
+from fmdiffae.lightning.lit_data_module import BaseDataModule
 
 
 class CNNClassifier(nn.Module):

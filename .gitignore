@@ -15,4 +15,4 @@ exp/slurm
 exp/logs
 
 # Experiment Checkpoints
-reproduce_results/classification/exp/runs
+reproduce_results/classification/exp/*/runs

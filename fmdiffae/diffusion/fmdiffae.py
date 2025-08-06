@@ -240,6 +240,8 @@ class FMDiffAE(nn.Module):
         self,
         batch_size,
         device,
+        save_path=None,
+        save_interval=None,
         inputs=None,
         zs=None,
         lows=None,
@@ -296,7 +298,7 @@ class FMDiffAE(nn.Module):
         if outer_pbar:
             iterator = tqdm(iterator, desc="Generating Batches", leave=False)
 
-        for batch_indices in iterator:
+        for i, batch_indices in enumerate(iterator):
             output = self.generate(
                 inputs=opt_slice(inputs, batch_indices),
                 zs=opt_slice(zs, batch_indices),
@@ -313,8 +315,16 @@ class FMDiffAE(nn.Module):
                 pbar=inner_pbar,
             )
             all_outs.append(output.cpu())
+            
+            if save_path is not None and save_interval is not None and i % save_interval == 0:
+                torch.save(torch.cat(all_outs, dim=0), save_path)        
+        
+        all_outs = torch.cat(all_outs, dim=0)
+        
+        if save_path is not None:
+            torch.save(all_outs, save_path)
 
-        return torch.cat(all_outs, dim=0)
+        return all_outs
 
     def _denoise(self, x, sigma, z):
         c_skip, c_out, c_in, c_noise = self._get_cs(sigma)

@@ -104,7 +104,9 @@ class FMDiffAE(nn.Module):
             num_to_blend = 1
         else:
             if not isinstance(blend_weights, torch.Tensor):
-                blend_weights = torch.tensor(blend_weights, dtype=dtype, device=device)
+                blend_weights = torch.as_tensor(
+                    blend_weights, dtype=dtype, device=device
+                )
             else:
                 blend_weights = blend_weights.to(dtype=dtype, device=device)
 
@@ -119,8 +121,8 @@ class FMDiffAE(nn.Module):
 
             if lows is not None:
                 if not isinstance(lows, torch.Tensor):
-                    lows = torch.tensor(lows, dtype=dtype, device=device)
-                    highs = torch.tensor(highs, dtype=dtype, device=device)
+                    lows = torch.as_tensor(lows, dtype=dtype, device=device)
+                    highs = torch.as_tensor(highs, dtype=dtype, device=device)
                 else:
                     lows = lows.to(dtype=dtype, device=device)
                     highs = highs.to(dtype=dtype, device=device)
@@ -130,7 +132,7 @@ class FMDiffAE(nn.Module):
 
             if fft_mask is not None:
                 if not isinstance(fft_mask, torch.Tensor):
-                    fft_mask = torch.tensor(fft_mask, device=device)
+                    fft_mask = torch.as_tensor(fft_mask, device=device)
                 else:
                     fft_mask = fft_mask.to(device=device)
 
@@ -232,6 +234,87 @@ class FMDiffAE(nn.Module):
             x_curr = x_next
 
         return x_curr
+
+    @torch.no_grad()
+    def batch_generate(
+        self,
+        batch_size,
+        device,
+        inputs=None,
+        zs=None,
+        lows=None,
+        highs=None,
+        fft_mask=None,
+        cfg_scale=1.0,
+        blend_weights=None,
+        init_noise=None,
+        num_steps=35,
+        sigma_max=80,
+        sigma_min=0.002,
+        rho=7,
+        outer_pbar=True,
+        inner_pbar=False,
+    ):
+        # Compute total number of examples to generate
+        if inputs is not None:
+            total = inputs.shape[0]
+            ndim = inputs.ndim
+        elif zs is not None:
+            total = zs.shape[0]
+            ndim = zs.ndim
+        else:
+            raise ValueError("Inputs or zs must be provided to generate")
+
+        if blend_weights is not None:
+            if ndim < len(self.datashape) + 2:
+                raise ValueError(
+                    "Batch dim must be provided to batch_generate with blending: "
+                    "inputs or zs shape must be (total, num_to_blend, ...)"
+                )
+
+            if not isinstance(blend_weights, torch.Tensor):
+                blend_weights = torch.as_tensor(blend_weights)
+
+            # generate fcn allows broadcasting blend_weights across batch dim.
+            # In this case, expanding is needed to ensure proper slicing.
+            if blend_weights.ndim == 1:
+                blend_weights = blend_weights.expand(total, -1)
+
+        # Manage batching
+        indices = torch.arange(total)
+
+        def opt_slice(x, idx):
+            if x is not None:
+                x = x[idx]
+                if isinstance(x, torch.Tensor):
+                    x = x.to(device)
+            return x
+
+        all_outs = []
+
+        iterator = indices.split(batch_size)
+        if outer_pbar:
+            iterator = tqdm(iterator, desc="Generating Batches", leave=False)
+
+        for batch_indices in iterator:
+            output = self.generate(
+                inputs=opt_slice(inputs, batch_indices),
+                zs=opt_slice(zs, batch_indices),
+                lows=opt_slice(lows, batch_indices),
+                highs=opt_slice(highs, batch_indices),
+                fft_mask=opt_slice(fft_mask, batch_indices),
+                cfg_scale=cfg_scale,
+                blend_weights=opt_slice(blend_weights, batch_indices),
+                init_noise=opt_slice(init_noise, batch_indices),
+                num_steps=num_steps,
+                sigma_max=sigma_max,
+                sigma_min=sigma_min,
+                rho=rho,
+                pbar=inner_pbar,
+            )
+            all_outs.append(output.cpu())
+
+        return torch.cat(all_outs, dim=0)
 
     def _denoise(self, x, sigma, z):
         c_skip, c_out, c_in, c_noise = self._get_cs(sigma)

@@ -110,6 +110,11 @@ if __name__ == "__main__":
         default=500,
     )
     parser.add_argument(
+        "--window_size",
+        type=int,
+        default=10,
+    )
+    parser.add_argument(
         "--step_size",
         type=int,
         default=1,
@@ -150,7 +155,7 @@ if __name__ == "__main__":
     else:
         init_noise = None
 
-    for i, spec in valid_gtzan_spec:
+    for i, spec in enumerate(valid_gtzan_spec):
         out = generate_with_spectral_sweep(
             model,
             window_size=args.window_size,

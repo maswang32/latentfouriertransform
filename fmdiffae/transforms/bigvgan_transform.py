@@ -64,6 +64,9 @@ class BigVGANTransform:
         return 2 * ((log_spec - self.max_log_spec_value) / (self.range)) + 1
 
     def batched_inverse_transform(self, x, pbar=False):
+        x_device = x.device
+        model_device = next(self.model.parameters()).device
+
         num_batches = math.ceil(x.shape[0] / self.batch_size)
         if num_batches > 1:
             inverted = []
@@ -73,7 +76,9 @@ class BigVGANTransform:
                 iterator = tqdm(iterator, desc="Inverting", leave=False)
 
             for chunk in iterator:
-                inverted.append(self.inverse_transform(chunk))
+                inverted.append(
+                    self.inverse_transform(chunk.to(model_device)).to(x_device)
+                )
             inverted = torch.cat(inverted, dim=0)
 
         else:

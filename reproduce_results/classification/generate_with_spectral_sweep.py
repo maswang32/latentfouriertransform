@@ -138,9 +138,7 @@ if __name__ == "__main__":
 
     # Load Data/Model
     valid_gtzan_spec = torch.from_numpy(
-        np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")[
-            args.start_idx : args.stop_idx
-        ]
+        np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")
     )
 
     model = FMDiffAEModule.load_torch_model(
@@ -157,7 +155,7 @@ if __name__ == "__main__":
     else:
         init_noise = None
 
-    for i, spec in enumerate(valid_gtzan_spec):
+    for i in range(args.start_idx, args.stop_idx):
         out = generate_with_spectral_sweep(
             model,
             window_size=args.window_size,
@@ -166,7 +164,7 @@ if __name__ == "__main__":
             device=next(model.parameters()).device,
             save_path=None,
             save_interval=None,
-            inputs=spec.unsqueeze(0),
+            inputs=valid_gtzan_spec[i].unsqueeze(0),
             cfg_scale=args.cfg_scale,
             init_noise=init_noise,
             num_steps=args.num_steps,

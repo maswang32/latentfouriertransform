@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--same_init_noise",
         action="store_true",
-        default=False
+        default=False,
     )
     parser.add_argument(
         "--start_idx",
@@ -138,9 +138,11 @@ if __name__ == "__main__":
 
     # Load Data/Model
     valid_gtzan_spec = torch.from_numpy(
-        np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")[args.start_idx:args.stop_idx]
+        np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")[
+            args.start_idx : args.stop_idx
+        ]
     )
-    
+
     model = FMDiffAEModule.load_torch_model(
         ckpt_path=args.ckpt_path,
         strict=True,
@@ -171,4 +173,4 @@ if __name__ == "__main__":
             outer_pbar=True,
             inner_pbar=False,
         )
-        torch.save(out, os.path.join(args.save_dir, "{i}.pt"))
+        torch.save(out, os.path.join(args.save_dir, f"{i}.pt"))

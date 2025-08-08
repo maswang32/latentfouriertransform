@@ -82,7 +82,7 @@ class BigVGANTransform:
             inverted = torch.cat(inverted, dim=0)
 
         else:
-            inverted = self.inverse_transform(x)
+            inverted = self.inverse_transform(x.to(model_device)).to(x_device)
 
         return inverted
 

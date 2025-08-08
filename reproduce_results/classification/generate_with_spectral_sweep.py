@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 import librosa
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
+from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 
 
 def get_sliding_window_mask(length, window_size, step_size):
@@ -110,6 +111,11 @@ if __name__ == "__main__":
         default=500,
     )
     parser.add_argument(
+        "--skip_spec_generation",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--window_size",
         type=int,
         default=10,
@@ -122,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=256,
+        default=32,
     )
     parser.add_argument(
         "--cfg_scale",
@@ -134,41 +140,61 @@ if __name__ == "__main__":
         type=int,
         default=35,
     )
-    args = parser.parse_args()
-
-    # Load Data/Model
-    valid_gtzan_spec = torch.from_numpy(
-        np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")
+    parser.add_argument(
+        "--transform_batch_size",
+        type=int,
+        default=128,
     )
 
-    model = FMDiffAEModule.load_torch_model(
-        ckpt_path=args.ckpt_path,
-        strict=True,
-    ).cuda()
+    args = parser.parse_args()
 
-    model = torch.compile(model)
+    if not args.skip_spec_generation:
+        # Load Data/Model
+        valid_gtzan_spec = torch.from_numpy(
+            np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")
+        )
 
-    if args.same_init_noise:
-        gen = torch.Generator()
-        gen.manual_seed(3)
-        init_noise = torch.randn(*model.datashape, generator=gen) * 80
-    else:
-        init_noise = None
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.ckpt_path,
+            strict=True,
+        ).cuda()
+
+        model = torch.compile(model)
+
+        if args.same_init_noise:
+            gen = torch.Generator()
+            gen.manual_seed(3)
+            init_noise = torch.randn(*model.datashape, generator=gen) * 80
+        else:
+            init_noise = None
+
+        for i in range(args.start_idx, args.stop_idx):
+            out = generate_with_spectral_sweep(
+                model,
+                window_size=args.window_size,
+                step_size=args.step_size,
+                batch_size=args.batch_size,
+                device=next(model.parameters()).device,
+                save_path=None,
+                save_interval=None,
+                inputs=valid_gtzan_spec[i].unsqueeze(0),
+                cfg_scale=args.cfg_scale,
+                init_noise=init_noise,
+                num_steps=args.num_steps,
+                outer_pbar=True,
+                inner_pbar=False,
+            )
+            torch.save(out.squeeze(0), os.path.join(args.save_dir, f"{i}_spec.pt"))
+
+    transform = BigVGANTransform(batch_size=args.transform_batch_size)
+    transform.model = transform.model.cuda()
 
     for i in range(args.start_idx, args.stop_idx):
-        out = generate_with_spectral_sweep(
-            model,
-            window_size=args.window_size,
-            step_size=args.step_size,
-            batch_size=args.batch_size,
-            device=next(model.parameters()).device,
-            save_path=None,
-            save_interval=None,
-            inputs=valid_gtzan_spec[i].unsqueeze(0),
-            cfg_scale=args.cfg_scale,
-            init_noise=init_noise,
-            num_steps=args.num_steps,
-            outer_pbar=True,
-            inner_pbar=False,
+        specs = torch.load(os.path.join(args.save_dir, f"{i}_spec.pt"))
+        print(f"{specs.shape=}")
+        audios = transform.batched_inverse_transform(
+            specs,
+            pbar=True,
         )
-        torch.save(out, os.path.join(args.save_dir, f"{i}.pt"))
+        print(f"{audios.shape=}")
+        torch.save(audios, os.path.join(args.save_dir, f"{i}_audio.pt"))

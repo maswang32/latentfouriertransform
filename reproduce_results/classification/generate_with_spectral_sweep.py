@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import librosa
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
+from fmdiffae.utils.fad import get_embeddings_vggish
 
 
 def get_sliding_window_mask(length, window_size, step_size):
@@ -84,17 +85,21 @@ def compute_beat_spectrum(x, fs=22050, hop_length=256, max_size=None):
 def estimate_tempo(x, fs=22050, hop_length=256):
     oenv = librosa.onset.onset_strength(y=x, sr=fs, hop_length=hop_length)
     tempo = librosa.feature.tempo(onset_envelope=oenv, sr=fs, hop_length=hop_length)
-    return tempo
+    return tempo.reshape(-1)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Audio Using Sliding Windows")
     parser.add_argument(
-        "ckpt_path",
-    )
-    parser.add_argument(
         "save_dir",
     )
+    # Arguments Related to Spectrogram Generation
+    parser.add_argument(
+        "--skip_spec_generation",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument("--ckpt_path", default=None)
     parser.add_argument(
         "--same_init_noise",
         action="store_true",
@@ -109,11 +114,6 @@ if __name__ == "__main__":
         "--stop_idx",
         type=int,
         default=500,
-    )
-    parser.add_argument(
-        "--skip_spec_generation",
-        action="store_true",
-        default=False,
     )
     parser.add_argument(
         "--window_size",
@@ -140,13 +140,34 @@ if __name__ == "__main__":
         type=int,
         default=35,
     )
+    # Arguments Related to Spectrogram to Audio Inversion
+    parser.add_argument(
+        "--skip_inversion",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument(
         "--transform_batch_size",
         type=int,
         default=128,
     )
 
+    # Arguments Related to Tempo Estimation
+    parser.add_argument(
+        "--skip_estimate_tempo",
+        action="store_true",
+        default=False,
+    )
+    # Arguments Related to VGGish Embeddings
+    parser.add_argument(
+        "--skip_compute_vggish_embeddings",
+        action="store_true",
+        default=False,
+    )
+
     args = parser.parse_args()
+
+    os.makedirs(args.save_dir, exist_ok=True)
 
     if not args.skip_spec_generation:
         # Load Data/Model
@@ -169,7 +190,7 @@ if __name__ == "__main__":
             init_noise = None
 
         for i in range(args.start_idx, args.stop_idx):
-            out = generate_with_spectral_sweep(
+            specs = generate_with_spectral_sweep(
                 model,
                 window_size=args.window_size,
                 step_size=args.step_size,
@@ -184,17 +205,35 @@ if __name__ == "__main__":
                 outer_pbar=True,
                 inner_pbar=False,
             )
-            torch.save(out.squeeze(0), os.path.join(args.save_dir, f"{i}_spec.pt"))
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            os.makedirs(i_path, exist_ok=True)
+            torch.save(specs.squeeze(0), os.path.join(i_path, "specs.pt"))
 
-    transform = BigVGANTransform(batch_size=args.transform_batch_size)
-    transform.model = transform.model.cuda()
+    if not args.skip_inversion:
+        transform = BigVGANTransform(batch_size=args.transform_batch_size)
+        transform.model = transform.model.cuda()
 
-    for i in range(args.start_idx, args.stop_idx):
-        specs = torch.load(os.path.join(args.save_dir, f"{i}_spec.pt"))
-        print(f"{specs.shape=}")
-        audios = transform.batched_inverse_transform(
-            specs,
-            pbar=True,
-        )
-        print(f"{audios.shape=}")
-        torch.save(audios, os.path.join(args.save_dir, f"{i}_audio.pt"))
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            specs = torch.load(os.path.join(i_path, "specs.pt"))
+            print(f"{specs.shape=}")
+            audios = transform.batched_inverse_transform(
+                specs,
+                pbar=True,
+            )
+            print(f"{audios.shape=}")
+            torch.save(audios, os.path.join(i_path, "audios.pt"))
+
+    if not args.skip_estimate_tempo:
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
+            tempos = estimate_tempo(audios)
+            np.save(os.path.join(i_path, "tempos.npy"), tempos)
+
+    if not args.skip_compute_vggish_embeddings:
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            audios = torch.load(os.path.join(i_path, "audios.pt"))
+            vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
+            torch.save(vggish_embeddings, os.path.join(i_path, "vggish_embeddings.pt"))

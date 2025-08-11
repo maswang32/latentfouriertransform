@@ -9,11 +9,10 @@ notebooks
 scripts
 old
 
-# Checkpoints
+# Training Checkpoints/Logs
 exp/runs
 exp/slurm
 exp/logs
 
-# Experiment Checkpoints
-reproduce_results/classification/exp/*/runs
-reproduce_results/classification/exp/generate_windowed
+# Experiments
+reproduce_results/classification/exp/

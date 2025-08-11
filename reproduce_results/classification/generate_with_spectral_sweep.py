@@ -14,6 +14,11 @@ def get_sliding_window_mask(length, window_size, step_size):
     return torch.eye(length).unfold(0, window_size, step_size).sum(dim=-1)
 
 
+def windows_to_bins(length, window_size, step_size):
+    sliding_window_mask = get_sliding_window_mask(length, window_size, step_size)
+    return sliding_window_mask / sliding_window_mask.sum(dim=0, keepdim=True)
+
+
 def generate_with_spectral_sweep(
     model,
     window_size,
@@ -62,9 +67,19 @@ def generate_with_spectral_sweep(
     return out.unflatten(0, (num_inputs, num_bands))
 
 
-def jensen_shannon_distance(p_logits, q_logits, dim=-1):
-    p_log = F.log_softmax(p_logits, dim=dim)
-    q_log = F.log_softmax(q_logits, dim=dim)
+def jensen_shannon_distance(p_logits=None, q_logits=None, p=None, q=None, dim=-1):
+    assert (p_logits is None) ^ (p is None)
+    assert (q_logits is None) ^ (q is None)
+
+    if p is None:
+        p_log = F.log_softmax(p_logits, dim=dim)
+    else:
+        p_log = p.log()
+
+    if q is None:
+        q_log = F.log_softmax(q_logits, dim=dim)
+    else:
+        q_log = q.log()
 
     m_log = torch.logaddexp(p_log, q_log) - math.log(2.0)
 

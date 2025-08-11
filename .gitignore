@@ -14,5 +14,5 @@ exp/runs
 exp/slurm
 exp/logs
 
-# Experiments
+# Experiment Logs
 reproduce_results/classification/exp/

@@ -1,0 +1,27 @@
+batch_size: ${batch_size}
+num_classes: 11
+data_type: vggish_embeddings
+
+train_dataset:
+  _target_: reproduce_results.classification.classification.ClassificationDataset
+  data_path: "/data/hai-res/ycda/processed-datasets/IRMAS/train_${data.data_type}.npy"
+  labels_path: /data/hai-res/ycda/processed-datasets/IRMAS/train_labels.npy
+
+valid_dataset:
+  _target_: reproduce_results.classification.classification.ClassificationDataset
+  data_path: "/data/hai-res/ycda/processed-datasets/IRMAS/valid_${data.data_type}.npy"
+  labels_path: /data/hai-res/ycda/processed-datasets/IRMAS/valid_labels.npy
+
+train_dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False
+
+valid_dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: False
+  persistent_workers: False

@@ -1,0 +1,70 @@
+name: debug_run
+ckpt_path: null
+
+# Save Directories
+run_dir: exp/inst_class/runs/${name}
+hydra:
+  run:
+    dir: ${run_dir}
+
+# Imports
+defaults:
+  - data: irmas_5s
+  - model: linear_probe
+  - _self_
+
+# Custom Params
+batch_size: 8192
+num_workers: 32
+float32_matmul_precision: medium
+compile: True
+seed: 3
+
+# Trainer Params
+trainer:
+  _target_: lightning.pytorch.Trainer
+  default_root_dir: ${run_dir}
+  max_steps: 350000
+  devices: 1
+  accelerator: gpu
+  precision: 32
+  enable_checkpointing: True
+  log_every_n_steps: 1
+  
+
+# Optimizers/Schedulers
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-4
+  weight_decay: 1e-2
+
+
+# Logger
+logger:
+  _target_: lightning.pytorch.loggers.WandbLogger
+  project: instrument_classification
+  name: ${name}
+  save_dir: ${run_dir}
+  id: null
+
+# checkpointing
+callbacks:
+  checkpoint_acc:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/checkpoints
+    filename: "{step}-{accuracy/valid:.7f}"
+    auto_insert_metric_name: False
+    monitor: "accuracy/valid"
+    mode: max
+    save_top_k: 3
+    save_last: True
+
+  checkpoint_loss:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/checkpoints
+    filename: "{step}-{loss/valid:.7f}"
+    auto_insert_metric_name: False
+    monitor: "loss/valid"
+    mode: min
+    save_top_k: 3
+    save_last: False

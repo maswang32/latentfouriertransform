@@ -1,6 +1,6 @@
 batch_size: ${batch_size}
 num_classes: 10
-data_type: spec
+data_type: vggish_embeddings
 
 train_dataset:
   _target_: reproduce_results.classification.classification.ClassificationDataset

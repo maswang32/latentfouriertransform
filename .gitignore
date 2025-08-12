@@ -4,11 +4,6 @@
 /.vscode
 **/*.egg-info
 
-# Notebooks
-notebooks
-scripts
-old
-
 # Training Checkpoints/Logs
 exp/runs
 exp/slurm
@@ -17,4 +12,5 @@ exp/logs
 # Experiment Logs
 reproduce_results/classification/exp/genre_class
 reproduce_results/classification/exp/inst_class
+reproduce_results/classification/exp/runs
 reproduce_results/sweep/exp

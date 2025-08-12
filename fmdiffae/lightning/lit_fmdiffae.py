@@ -36,6 +36,14 @@ class FMDiffAEModule(L.LightningModule):
             "lr_scheduler": {"scheduler": scheduler, "interval": "step"},
         }
 
+    def on_train_start(self):
+        target_lr = self.hparams["optimizer"]["lr"]
+        for optimizer in self.trainer.optimizers:
+            for param_group in optimizer.param_groups:
+                old_lr = param_group["lr"]
+                param_group["lr"] = target_lr
+                print(f"Changed LR from {old_lr} to {param_group['lr']}")
+
     def training_step(self, batch):
         loss = self(batch)
         self.log("loss/train", loss, prog_bar=True, on_step=True, on_epoch=False)

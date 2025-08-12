@@ -2,7 +2,7 @@ name: debug_run
 ckpt_path: null
 
 # Save Directories
-run_dir: exp/inst_class/runs/${name}
+run_dir: exp/runs/${name}
 hydra:
   run:
     dir: ${run_dir}
@@ -16,15 +16,15 @@ defaults:
 # Custom Params
 batch_size: 8192
 num_workers: 32
-float32_matmul_precision: medium
-compile: True
+float32_matmul_precision: high
+compile: False
 seed: 3
 
 # Trainer Params
 trainer:
   _target_: lightning.pytorch.Trainer
   default_root_dir: ${run_dir}
-  max_steps: 50000
+  max_steps: 12000
   devices: 1
   accelerator: gpu
   precision: 32
@@ -34,9 +34,8 @@ trainer:
 
 # Optimizers/Schedulers
 optimizer:
-  _target_: torch.optim.AdamW
+  _target_: torch.optim.Adam
   lr: 1e-4
-  weight_decay: 1e-2
 
 
 # Logger

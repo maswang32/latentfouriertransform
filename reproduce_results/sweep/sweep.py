@@ -123,6 +123,7 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
+    parser.add_argument("--input_spec_path", default=None)
     parser.add_argument("--ckpt_path", default=None)
     parser.add_argument(
         "--same_init_noise",
@@ -195,9 +196,7 @@ if __name__ == "__main__":
 
     if not args.skip_spec_generation:
         # Load Data/Model
-        valid_gtzan_spec = torch.from_numpy(
-            np.load("/data/hai-res/ycda/processed-datasets/gtzan/valid_spec.npy")
-        )
+        input_spec = torch.from_numpy(np.load(args.input_spec_path))
 
         model = FMDiffAEModule.load_torch_model(
             ckpt_path=args.ckpt_path,
@@ -222,7 +221,7 @@ if __name__ == "__main__":
                 device=next(model.parameters()).device,
                 save_path=None,
                 save_interval=None,
-                inputs=valid_gtzan_spec[i].unsqueeze(0),
+                inputs=input_spec[i].unsqueeze(0),
                 cfg_scale=args.cfg_scale,
                 init_noise=init_noise,
                 num_steps=args.num_steps,

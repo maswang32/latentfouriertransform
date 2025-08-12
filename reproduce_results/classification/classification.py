@@ -205,11 +205,11 @@ def main(config):
     if config.compile:
         lit_module = torch.compile(lit_module)
 
+    callbacks = [instantiate(c) for c in config.callbacks.values()]
     logger = instantiate(
         config.logger, resume=("auto" if config.ckpt_path else "never")
     )
-
-    trainer = instantiate(config.trainer, logger=logger)
+    trainer = instantiate(config.trainer, logger=logger, callbacks=callbacks)
     trainer.fit(lit_module, datamodule=data_module, ckpt_path=config.ckpt_path)
 
 

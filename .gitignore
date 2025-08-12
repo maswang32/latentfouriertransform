@@ -15,4 +15,6 @@ exp/slurm
 exp/logs
 
 # Experiment Logs
-reproduce_results/classification/exp/
+reproduce_results/classification/exp/genre_class
+reproduce_results/classification/exp/inst_class
+reproduce_results/sweep/exp

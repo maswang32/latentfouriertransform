@@ -5,9 +5,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import librosa
+import essentia.standard as es
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 from fmdiffae.utils.fad import get_embeddings_vggish
+from fmdiffae.data.data_utils import resample
 
 
 def get_sliding_window_mask(length, window_size, step_size):
@@ -176,7 +178,12 @@ if __name__ == "__main__":
         type=int,
         default=128,
     )
-
+    # Arguments Related to Onset Envelope
+    parser.add_argument(
+        "--skip_onset_envelope",
+        action="store_true",
+        default=False,
+    )
     # Arguments Related to Tempo Estimation
     parser.add_argument(
         "--skip_estimate_tempo",
@@ -186,6 +193,18 @@ if __name__ == "__main__":
     # Arguments Related to VGGish Embeddings
     parser.add_argument(
         "--skip_compute_vggish_embeddings",
+        action="store_true",
+        default=False,
+    )
+    # Arguments Related to Tonnetz
+    parser.add_argument(
+        "--skip_tonnetz",
+        action="store_true",
+        default=False,
+    )
+    # Arguments Related to Pitch Detection
+    parser.add_argument(
+        "--skip_pitch_detect",
         action="store_true",
         default=False,
     )
@@ -247,6 +266,13 @@ if __name__ == "__main__":
             print(f"{audios.shape=}")
             torch.save(audios, os.path.join(i_path, "audios.pt"))
 
+    if not args.skip_onset_envelope:
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
+            oenvs = librosa.onset.onset_strength(y=audios, sr=22050, hop_length=256)
+            np.save(os.path.join(i_path, "oenvs.npy"), oenvs)
+
     if not args.skip_estimate_tempo:
         for i in range(args.start_idx, args.stop_idx):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
@@ -260,3 +286,34 @@ if __name__ == "__main__":
             audios = torch.load(os.path.join(i_path, "audios.pt"))
             vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
             torch.save(vggish_embeddings, os.path.join(i_path, "vggish_embeddings.pt"))
+
+    if not args.skip_tonnetz:
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
+            tonnetz = librosa.feature.tonnetz(y=audios, sr=22050)  # Default Hop Length
+            np.save(os.path.join(i_path, "tonnetz.npy"), tonnetz)
+
+    if not args.skip_pitch_detect:
+        loudness_eq = es.EqualLoudness(sample_rate=44100)
+        pitch_estimator = es.PredominantPitchMelodia(sample_rate=44100)
+
+        for i in range(args.start_idx, args.stop_idx):
+            i_path = os.path.join(args.save_dir, f"{i:04d}")
+            audios = torch.load(os.path.join(i_path, "audios.pt"))
+            audios_resampled = resample(audios.cuda(), 22050, 44100).cpu().numpy()
+
+            audio_normalized = np.stack([loudness_eq(x) for x in audios_resampled])
+
+            pitches = []
+            confidences = []
+
+            for x in audio_normalized:
+                p, c = pitch_estimator(x)
+                pitches.append(p)
+                confidences.append(c)
+
+            pitches = np.stack(pitches)
+            confidences = np.stack(confidences)
+            np.save(os.path.join(i_path, "pitches.npy"), pitches)
+            np.save(os.path.join(i_path, "pitch_confidences.npy"), confidences)

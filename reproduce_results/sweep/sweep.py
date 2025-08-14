@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 import librosa
 import essentia.standard as es
+from tqdm import tqdm
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 from fmdiffae.utils.fad import get_embeddings_vggish
@@ -119,6 +120,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "save_dir",
     )
+    parser.add_argument(
+        "--start_idx",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--stop_idx",
+        type=int,
+        default=500,
+    )
     # Arguments Related to Spectrogram Generation
     parser.add_argument(
         "--skip_spec_generation",
@@ -131,16 +142,6 @@ if __name__ == "__main__":
         "--same_init_noise",
         action="store_true",
         default=False,
-    )
-    parser.add_argument(
-        "--start_idx",
-        type=int,
-        default=0,
-    )
-    parser.add_argument(
-        "--stop_idx",
-        type=int,
-        default=500,
     )
     parser.add_argument(
         "--window_size",
@@ -267,14 +268,20 @@ if __name__ == "__main__":
             torch.save(audios, os.path.join(i_path, "audios.pt"))
 
     if not args.skip_onset_envelope:
-        for i in range(args.start_idx, args.stop_idx):
+        for i in tqdm(
+            range(args.start_idx, args.stop_idx),
+            desc="Computing Onset Envelopes",
+        ):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
             audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
             oenvs = librosa.onset.onset_strength(y=audios, sr=22050, hop_length=256)
             np.save(os.path.join(i_path, "oenvs.npy"), oenvs)
 
     if not args.skip_estimate_tempo:
-        for i in range(args.start_idx, args.stop_idx):
+        for i in tqdm(
+            range(args.start_idx, args.stop_idx),
+            desc="Estimating Tempos",
+        ):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
             audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
             tempos = estimate_tempo(audios)
@@ -288,17 +295,23 @@ if __name__ == "__main__":
             torch.save(vggish_embeddings, os.path.join(i_path, "vggish_embeddings.pt"))
 
     if not args.skip_tonnetz:
-        for i in range(args.start_idx, args.stop_idx):
+        for i in tqdm(
+            range(args.start_idx, args.stop_idx),
+            desc="Computing Tonnetz",
+        ):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
             audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
             tonnetz = librosa.feature.tonnetz(y=audios, sr=22050)  # Default Hop Length
             np.save(os.path.join(i_path, "tonnetz.npy"), tonnetz)
 
     if not args.skip_pitch_detect:
-        loudness_eq = es.EqualLoudness(sample_rate=44100)
-        pitch_estimator = es.PredominantPitchMelodia(sample_rate=44100)
+        loudness_eq = es.EqualLoudness(sampleRate=44100)
+        pitch_estimator = es.PredominantPitchMelodia(sampleRate=44100)
 
-        for i in range(args.start_idx, args.stop_idx):
+        for i in tqdm(
+            range(args.start_idx, args.stop_idx),
+            desc="Estimating Pitches",
+        ):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
             audios = torch.load(os.path.join(i_path, "audios.pt"))
             audios_resampled = resample(audios.cuda(), 22050, 44100).cpu().numpy()

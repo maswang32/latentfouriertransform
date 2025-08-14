@@ -4,13 +4,13 @@ data_type: vggish_embeddings
 
 train_dataset:
   _target_: reproduce_results.classification.classification.ClassificationDataset
-  data_path: "/data/hai-res/ycda/processed-datasets/IRMAS/train_${data.data_type}.npy"
-  labels_path: /data/hai-res/ycda/processed-datasets/IRMAS/train_labels.npy
+  data_path: "/data/hai-res/ycda/processed-datasets/irmas/train_${data.data_type}.npy"
+  labels_path: /data/hai-res/ycda/processed-datasets/irmas/train_inst.npy
 
 valid_dataset:
   _target_: reproduce_results.classification.classification.ClassificationDataset
-  data_path: "/data/hai-res/ycda/processed-datasets/IRMAS/valid_${data.data_type}.npy"
-  labels_path: /data/hai-res/ycda/processed-datasets/IRMAS/valid_labels.npy
+  data_path: "/data/hai-res/ycda/processed-datasets/irmas/valid_${data.data_type}.npy"
+  labels_path: /data/hai-res/ycda/processed-datasets/irmas/valid_inst.npy
 
 train_dataloader:
   _target_: torch.utils.data.DataLoader

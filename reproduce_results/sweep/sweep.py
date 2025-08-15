@@ -13,30 +13,62 @@ from fmdiffae.utils.fad import get_embeddings_vggish
 from fmdiffae.data.data_utils import resample
 
 
-def get_sliding_window_mask(length, window_size, step_size):
+def nearest_odd(x):
+    rounded = round(x)
+
+    if rounded % 2 == 0:
+        if x > rounded:
+            return rounded + 1
+        else:
+            return rounded - 1
+    else:
+        return rounded
+
+
+def get_linear_sliding_windows(length, window_size, step_size):
     return torch.eye(length).unfold(0, window_size, step_size).sum(dim=-1)
 
 
-def windows_to_bins(x, length, window_size, step_size):
-    sliding_window_mask = get_sliding_window_mask(length, window_size, step_size).to(
-        dtype=x.dtype
-    )
-    sliding_window_mask /= sliding_window_mask.sum(dim=0, keepdim=True)
+def get_log_sliding_windows(length, width_factor, width_offset, eps, step_size):
+    bin_indices = np.arange(length)  # np needed to use round()
+    bin_widths = width_factor * np.log(bin_indices + eps) + width_offset
+
+    if not np.all(bin_widths > 0):
+        raise ValueError("Bin widths must be > 0")
+
+    windows = []
+    for i in range(0, length, step_size):
+        quantized_width = nearest_odd(bin_widths[i])
+        start = max(i - quantized_width // 2, 0)
+        end = min(i + quantized_width // 2 + 1, length)
+        m = torch.zeros(length)
+        m[start:end] = 1
+        windows.append(m)
+    return torch.stack(windows)
+
+
+def windows_to_bins(x, windows):
+    windows = windows.to(dtype=x.dtype)
+    windows /= windows.sum(dim=0, keepdim=True)
 
     if x.ndim == 3:
-        return torch.einsum("nwd,wb->nbd", x, sliding_window_mask)
+        return torch.einsum("nwd,wb->nbd", x, windows)
     elif x.ndim == 2:
-        return torch.einsum("nw,wb->nb", x, sliding_window_mask)
+        return torch.einsum("nw,wb->nb", x, windows)
     elif x.ndim == 1:
-        return torch.einsum("w,wb->b", x, sliding_window_mask)
+        return torch.einsum("w,wb->b", x, windows)
 
 
 def generate_with_spectral_sweep(
     model,
-    window_size,
-    step_size,
-    batch_size,
-    device,
+    window_type,
+    window_size=None,
+    width_factor=None,
+    width_offset=None,
+    eps=None,
+    step_size=None,
+    batch_size=None,
+    device=None,
     save_path=None,
     save_interval=None,
     inputs=None,
@@ -49,10 +81,21 @@ def generate_with_spectral_sweep(
     rfft_size = model.freq_mask.F
 
     num_inputs = inputs.shape[0]
-    num_bands = math.ceil((rfft_size - window_size + 1) / step_size)
 
     # Create sliding window mask
-    sliding_window_mask = get_sliding_window_mask(rfft_size, window_size, step_size)
+    if window_type == "linear":
+        sliding_window_mask = get_linear_sliding_windows(
+            rfft_size, window_size, step_size
+        )
+    elif window_type == "log":
+        sliding_window_mask = get_log_sliding_windows(
+            rfft_size,
+            width_factor,
+            width_offset,
+            eps,
+            step_size,
+        )
+    num_bands = sliding_window_mask.shape[0]
 
     # Expand to be compatible
     sliding_window_mask = sliding_window_mask.repeat(num_inputs, 1)
@@ -98,8 +141,8 @@ def jensen_shannon_distance(p_logits=None, q_logits=None, p=None, q=None, dim=-1
     # Note - F.kl_div's arguments are (input, target)
     # This is the reverse of the math notation, in which the "true" distribution
     # Is the first argument
-    kl1 = F.kl_div(m_log, p_log, log_target=True, reduction="none").sum(dim)
-    kl2 = F.kl_div(m_log, q_log, log_target=True, reduction="none").sum(dim)
+    kl1 = F.kl_div(m_log, p_log, log_target=True, reduction="none").sum(dim=dim)
+    kl2 = F.kl_div(m_log, q_log, log_target=True, reduction="none").sum(dim=dim)
     return torch.sqrt(0.5 * (kl1 + kl2))
 
 
@@ -130,28 +173,25 @@ if __name__ == "__main__":
         type=int,
         default=500,
     )
+
     # Arguments Related to Spectrogram Generation
     parser.add_argument(
         "--skip_spec_generation",
         action="store_true",
         default=False,
     )
-    parser.add_argument("--input_spec_path", default=None)
-    parser.add_argument("--ckpt_path", default=None)
+    parser.add_argument(
+        "--input_spec_path",
+        default=None,
+    )
+    parser.add_argument(
+        "--ckpt_path",
+        default=None,
+    )
     parser.add_argument(
         "--same_init_noise",
         action="store_true",
         default=False,
-    )
-    parser.add_argument(
-        "--window_size",
-        type=int,
-        default=10,
-    )
-    parser.add_argument(
-        "--step_size",
-        type=int,
-        default=1,
     )
     parser.add_argument(
         "--batch_size",
@@ -168,6 +208,37 @@ if __name__ == "__main__":
         type=int,
         default=35,
     )
+
+    # Arguments Related to Windowing
+    parser.add_argument(
+        "--window_type",
+    )
+    parser.add_argument(
+        "--window_size",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--width_factor",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--width_offset",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--eps",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--step_size",
+        type=int,
+        default=1,
+    )
+
     # Arguments Related to Spectrogram to Audio Inversion
     parser.add_argument(
         "--skip_inversion",
@@ -235,7 +306,11 @@ if __name__ == "__main__":
         for i in range(args.start_idx, args.stop_idx):
             specs = generate_with_spectral_sweep(
                 model,
+                window_type=args.window_type,
                 window_size=args.window_size,
+                width_factor=args.width_factor,
+                width_offset=args.width_offset,
+                eps=args.eps,
                 step_size=args.step_size,
                 batch_size=args.batch_size,
                 device=next(model.parameters()).device,

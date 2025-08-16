@@ -376,7 +376,9 @@ if __name__ == "__main__":
         ):
             i_path = os.path.join(args.save_dir, f"{i:04d}")
             audios = torch.load(os.path.join(i_path, "audios.pt")).numpy()
-            tonnetz = librosa.feature.tonnetz(y=audios, sr=22050)  # Default Hop Length
+            tonnetz = librosa.feature.tonnetz(
+                y=audios, sr=22050, hop_length=256
+            )  # Default Hop Length
             np.save(os.path.join(i_path, "tonnetz.npy"), tonnetz)
 
     if not args.skip_pitch_detect:

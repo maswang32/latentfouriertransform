@@ -28,7 +28,7 @@ class CorrelatedFFTMask(nn.Module):
             )
             k = k / torch.sqrt(torch.sum(k**2, axis=0, keepdim=True))
         else:
-            k = torch.eye(n_fft)
+            k = torch.eye(self.F)
 
         self.register_buffer("k", k, persistent=False)
 

@@ -315,12 +315,16 @@ class FMDiffAE(nn.Module):
                 pbar=inner_pbar,
             )
             all_outs.append(output.cpu())
-            
-            if save_path is not None and save_interval is not None and i % save_interval == 0:
-                torch.save(torch.cat(all_outs, dim=0), save_path)        
-        
+
+            if (
+                save_path is not None
+                and save_interval is not None
+                and i % save_interval == 0
+            ):
+                torch.save(torch.cat(all_outs, dim=0), save_path)
+
         all_outs = torch.cat(all_outs, dim=0)
-        
+
         if save_path is not None:
             torch.save(all_outs, save_path)
 

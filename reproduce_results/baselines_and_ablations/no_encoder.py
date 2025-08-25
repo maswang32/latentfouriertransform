@@ -59,7 +59,7 @@ class FMDiffAENoEncoder(FMDiffAE):
         return loss
 
 
-class AudioSpecDataset(Dataset):
+class AudioSpecTensorDataset(Dataset):
     def __init__(self, audio_path, spec_path):
         super().__init__()
 
@@ -73,7 +73,7 @@ class AudioSpecDataset(Dataset):
         return self.audio[idx], self.spec[idx]
 
 
-class AudioOnlyFAD(Callback):
+class NoEncoderFADAndReconstruction(Callback):
     def __init__(self, num_samples, num_steps, low_highs, pbar=True):
         super().__init__()
         self.num_samples = num_samples
@@ -122,7 +122,7 @@ class AudioOnlyFAD(Callback):
 
         mses = []
         embs = []
-        indices = []  # For Debugging
+        indices = []  # Debugging
 
         for batch_indices in rank_indices:
             batch_inputs = trainer.datamodule.valid_ds[

@@ -36,7 +36,8 @@ class FMDiffAENoEncoder(FMDiffAE):
         audio = batch[0]
         spec = batch[1]
 
-        z = self.resampler(audio).unsqueeze(1)
+        with torch.no_grad():
+            z = self.resampler(audio).unsqueeze(1)
 
         batch_size = z.shape[0]
 

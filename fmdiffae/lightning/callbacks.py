@@ -23,7 +23,7 @@ class PlotFeatureMap(Callback):
             self.counter = 0
 
     @rank_zero_only
-    @torch.no_grad()
+    @torch.inference_mode()
     def on_validation_epoch_end(self, trainer, pl_module):
         print("Plotting Feature Map")
 
@@ -90,7 +90,7 @@ class GenerateExamples(Callback):
             self.counter = 0
 
     @rank_zero_only
-    @torch.no_grad()
+    @torch.inference_mode()
     def on_validation_epoch_end(self, trainer, pl_module):
         print("Generating Examples")
         device = pl_module.device
@@ -147,7 +147,7 @@ class FADAndReconstruction(Callback):
         self.num_steps = num_steps
         self.pbar = pbar
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def on_validation_epoch_end(self, trainer, pl_module):
         print_once("Computing FAD")
 

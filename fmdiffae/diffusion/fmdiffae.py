@@ -58,7 +58,7 @@ class FMDiffAE(nn.Module):
         loss = nn.functional.mse_loss(decoder_out, target)
         return loss
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def generate(
         self,
         inputs=None,
@@ -235,7 +235,7 @@ class FMDiffAE(nn.Module):
 
         return x_curr
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def batch_generate(
         self,
         batch_size,
@@ -369,7 +369,7 @@ class FMDiffAE(nn.Module):
     def _get_cs(self, sigma: torch.Tensor) -> torch.Tensor:
         c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
         c_out = (self.sigma_data * sigma) / torch.sqrt(self.sigma_data**2 + sigma**2)
-        c_in = torch.sqrt(sigma**2 + self.sigma_data**2).reciprocal()
+        c_in = torch.rsqrt(sigma**2 + self.sigma_data**2)
         c_noise = 0.25 * torch.log(sigma.clamp_min(1e-12))
         c_noise = c_noise.reshape(-1)
         return c_skip, c_out, c_in, c_noise

@@ -83,7 +83,7 @@ class NoEncoderFADAndReconstruction(Callback):
         self.num_steps = num_steps
         self.pbar = pbar
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def on_validation_epoch_end(self, trainer, pl_module):
         print_once("Computing FAD")
 
@@ -126,12 +126,12 @@ class NoEncoderFADAndReconstruction(Callback):
         indices = []  # Debugging
 
         for batch_indices in rank_indices:
-            batch_inputs = trainer.datamodule.valid_ds[
-                batch_indices % self.num_samples
-            ].to(device)
+            batch_inputs = trainer.datamodule.valid_ds[batch_indices % self.num_samples]
             lows, highs = low_highs[batch_indices // self.num_samples].unbind(dim=-1)
 
             batch_input_audios, batch_input_specs = batch_inputs
+            batch_input_audios = batch_input_audios.to(device)
+            batch_input_specs = batch_input_specs.to(device)
 
             zs = pl_module.model.resampler(batch_input_audios).unsqueeze(1)
 

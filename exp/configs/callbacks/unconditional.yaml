@@ -1,0 +1,19 @@
+checkpoint:
+  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  dirpath: ${run_dir}/checkpoints
+  filename: "{step}-{FAD/max_fad:.3f}"
+  auto_insert_metric_name: False
+  monitor: "FAD/max_fad"
+  mode: min
+  save_top_k: 1
+  save_last: True
+
+lr_monitor:
+  _target_: lightning.pytorch.callbacks.LearningRateMonitor
+  logging_interval: step
+
+fad:
+  _target_: reproduce_results.baselines_and_ablations.unconditional.FAD
+  num_samples: 512
+  num_steps: 35
+  pbar: True

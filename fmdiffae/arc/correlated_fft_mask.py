@@ -46,24 +46,23 @@ class CorrelatedFFTMask(nn.Module):
         assert x.ndim == 3, "input to fftmask must have 3 dimensions"
         assert (lows is None) == (highs is None)
 
+        if lows is None and fft_mask is None and not self.mask_during_training:
+            return x
+
         batch_size, length = x.shape[0], x.shape[-1]
         device, dtype = x.device, x.dtype
 
         if fft_mask is None:
-            if self.mask_during_training:
-                if lows is None:
-                    scores = (
-                        torch.randn(batch_size, self.F, device=device, dtype=dtype)
-                        @ self.k
-                    )
-                    thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
-                    fft_mask = scores > thresholds
-                else:
-                    fft_mask = (self.v >= lows.unsqueeze(1)) & (
-                        self.v <= highs.unsqueeze(1)
-                    )
+            if lows is None:
+                scores = (
+                    torch.randn(batch_size, self.F, device=device, dtype=dtype) @ self.k
+                )
+                thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
+                fft_mask = scores > thresholds
             else:
-                fft_mask = torch.ones(batch_size, self.F, device=device, dtype=dtype)
+                fft_mask = (self.v >= lows.unsqueeze(1)) & (
+                    self.v <= highs.unsqueeze(1)
+                )
 
         return torch.fft.irfft(
             fft_mask.to(dtype).unsqueeze(1) * torch.fft.rfft(x.float(), n=self.n_fft),

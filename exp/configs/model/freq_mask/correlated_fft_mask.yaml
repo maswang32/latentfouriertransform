@@ -4,3 +4,4 @@ sigma: 0.5
 p: 2
 logscale: True
 eps: 1e-6
+mask_during_training: True

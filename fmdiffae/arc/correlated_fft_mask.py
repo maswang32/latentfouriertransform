@@ -4,11 +4,21 @@ import torch.nn as nn
 
 
 class CorrelatedFFTMask(nn.Module):
-    def __init__(self, n_fft=1024, sigma=0.5, p=2, logscale=True, eps=1e-6):
+    def __init__(
+        self,
+        n_fft=1024,
+        sigma=0.5,
+        p=2,
+        logscale=True,
+        eps=1e-6,
+        mask_during_training=True,
+    ):
         super().__init__()
         assert math.log2(n_fft).is_integer(), "n_fft must be a power of 2"
 
         self.n_fft = n_fft
+        self.mask_during_training = mask_during_training
+
         self.F = n_fft // 2 + 1  # rfft length
 
         self.register_buffer(
@@ -40,16 +50,20 @@ class CorrelatedFFTMask(nn.Module):
         device, dtype = x.device, x.dtype
 
         if fft_mask is None:
-            if lows is None:
-                scores = (
-                    torch.randn(batch_size, self.F, device=device, dtype=dtype) @ self.k
-                )
-                thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
-                fft_mask = scores > thresholds
+            if self.mask_during_training:
+                if lows is None:
+                    scores = (
+                        torch.randn(batch_size, self.F, device=device, dtype=dtype)
+                        @ self.k
+                    )
+                    thresholds = torch.randn(batch_size, 1, device=device, dtype=dtype)
+                    fft_mask = scores > thresholds
+                else:
+                    fft_mask = (self.v >= lows.unsqueeze(1)) & (
+                        self.v <= highs.unsqueeze(1)
+                    )
             else:
-                fft_mask = (self.v >= lows.unsqueeze(1)) & (
-                    self.v <= highs.unsqueeze(1)
-                )
+                fft_mask = torch.ones(batch_size, self.F, device=device, dtype=dtype)
 
         return torch.fft.irfft(
             fft_mask.to(dtype).unsqueeze(1) * torch.fft.rfft(x.float(), n=self.n_fft),

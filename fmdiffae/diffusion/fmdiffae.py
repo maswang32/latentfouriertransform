@@ -122,9 +122,12 @@ class FMDiffAE(nn.Module):
             if lows is not None:
                 if not isinstance(lows, torch.Tensor):
                     lows = torch.as_tensor(lows, dtype=dtype, device=device)
-                    highs = torch.as_tensor(highs, dtype=dtype, device=device)
                 else:
                     lows = lows.to(dtype=dtype, device=device)
+
+                if not isinstance(highs, torch.Tensor):
+                    highs = torch.as_tensor(highs, dtype=dtype, device=device)
+                else:
                     highs = highs.to(dtype=dtype, device=device)
 
                 lows = lows.view(-1)

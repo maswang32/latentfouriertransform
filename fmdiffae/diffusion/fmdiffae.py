@@ -58,7 +58,7 @@ class FMDiffAE(nn.Module):
         loss = nn.functional.mse_loss(decoder_out, target)
         return loss
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def generate(
         self,
         inputs=None,
@@ -87,7 +87,7 @@ class FMDiffAE(nn.Module):
             raise ValueError("Both `lows` and `highs` must be provided together")
 
         if lows is not None and fft_mask is not None:
-            raise ValueError("Cannot pass both `fft_mask` and `lows`/`highs`ss")
+            raise ValueError("Cannot pass both `fft_mask` and `lows`/`highs`")
 
         # Compute zs if necessary, and flatten/squeeze them
         if zs is None:
@@ -238,7 +238,7 @@ class FMDiffAE(nn.Module):
 
         return x_curr
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def batch_generate(
         self,
         batch_size,

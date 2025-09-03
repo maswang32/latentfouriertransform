@@ -83,7 +83,7 @@ class NoEncoderFADAndReconstruction(Callback):
         self.num_steps = num_steps
         self.pbar = pbar
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
         print_once("Computing FAD")
 

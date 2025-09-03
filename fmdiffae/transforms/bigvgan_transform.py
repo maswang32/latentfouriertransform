@@ -88,7 +88,7 @@ class BigVGANTransform:
 
     def inverse_transform(self, x):
         x = ((x - 1) / 2) * self.range + self.max_log_spec_value
-        with torch.inference_mode():
+        with torch.no_grad():
             x_3d = x.view(-1, x.shape[-2], x.shape[-1])
             inverted = self.model(x_3d)
             return inverted.reshape(*x.shape[:-2], -1)

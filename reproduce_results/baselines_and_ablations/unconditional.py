@@ -33,7 +33,7 @@ class EDM(nn.Module):
         loss = nn.functional.mse_loss(net_out, target)
         return loss
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def generate(
         self,
         batch_size=1,
@@ -122,7 +122,7 @@ class FAD(Callback):
         self.num_steps = num_steps
         self.pbar = pbar
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def on_validation_epoch_end(self, trainer, pl_module):
         print_once("Computing FAD")
 
@@ -179,4 +179,4 @@ class FAD(Callback):
         fad = compute_fad_from_embeddings(
             mean1=ref_mean, cov1=ref_cov, embeddings2=embs
         )
-        pl_module.log("FAD/max_fad", fad, sync_dist=True, step=trainer.global_step)
+        pl_module.log("FAD/max_fad", fad, sync_dist=True)

@@ -14,7 +14,7 @@ from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 
 LATENT_DEFAULTS = {
     "x_label": "Latent Frequency (Hz)",
-    "x_eps": 0.1,
+    "x_eps": 0.5,
     "x_lim": [0, 22050 / 512],
     "x_num_pts": 513,
     "x_ticks": [0, 1, 2, 5, 10, 20, 40],
@@ -23,7 +23,7 @@ LATENT_DEFAULTS = {
     "y_lim": (0, 1.1),
     "y_ticks": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
     "y_tick_labels": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-    "band_transition_width": 0.3,
+    "band_transition_width": 0.1,
 }
 
 
@@ -294,29 +294,19 @@ class BandpassAnimation:
 class AudioGenerator:
     def __init__(
         self,
-        specs_path,
         ckpt_path,
         device,
-        duplicate=False,
     ):
-        self.specs = torch.from_numpy(np.load(specs_path))
-        if duplicate:
-            self.specs = torch.cat((self.specs, self.specs), dim=-1)
         self.model = FMDiffAEModule.load_torch_model(ckpt_path=ckpt_path).to(device)
         self.device = device
 
         self.transform = BigVGANTransform()
         self.transform.model = self.transform.model.to(device)
 
-
-class BandPassGenerator(AudioGenerator):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @torch.inference_mode()
-    def generate(
+    @torch.no_grad()
+    def generate_bandpass(
         self,
-        idx,
+        spec,
         low_highs,
         cfg_scale=1.0,
         floor=0.1,
@@ -326,12 +316,12 @@ class BandPassGenerator(AudioGenerator):
         normalize_output=False,
     ):
         num = len(low_highs)
-        lows, highs = torch.tensor(np.array(low_highs)).unbind(dim=-1)
+        lows, highs = torch.tensor(low_highs).unbind(dim=-1)
 
         lows = torch.stack((torch.zeros(num), lows), dim=-1)
         highs = torch.stack((torch.ones(num), highs), dim=-1)
 
-        inputs = self.specs[idx].expand(num, 2, -1, -1).to(self.device)
+        inputs = spec.expand(num, 2, -1, -1).to(self.device)
         blend_weights = [floor, ceiling]
 
         out = self.model.generate(
@@ -349,7 +339,91 @@ class BandPassGenerator(AudioGenerator):
             out = out / torch.amax(torch.abs(out), dim=(-2, -1), keepdim=True)
 
         audios = self.transform.batched_inverse_transform(out, pbar=True).cpu()
-        return audios.reshape(1, -1)
+        return audios
+
+    @torch.no_grad()
+    def generate_blend(
+        self,
+        specs,
+        low_highs,
+        cfg_scale=1.0,
+        blend_weights=[0.5, 0.5],
+        init_noise=None,
+        num_steps=100,
+        normalize_output=False,
+    ):
+        """
+        specs: (num_to_blend, ...)
+        low_highs: (N, num_to_blend, 2)
+        blend_weights: (N, num_to_blend) OR (num_to_blend,)
+        """
+        num = len(low_highs)
+
+        blend_weights = torch.tensor(blend_weights)
+        if blend_weights.ndim == 1:
+            blend_weights = blend_weights.expand(num, -1)
+        num_to_blend = blend_weights.shape[-1]
+
+        low_highs = torch.tensor(low_highs)
+
+        # (N, num_to_blend)
+        lows, highs = low_highs.unbind(dim=-1)
+
+        # (N, num_to_blend, *datashape)
+        inputs = specs.expand(num, num_to_blend, -1, -1).to(self.device)
+
+        out = self.model.generate(
+            inputs=inputs,
+            lows=lows,
+            highs=highs,
+            cfg_scale=cfg_scale,
+            blend_weights=blend_weights,
+            init_noise=init_noise,
+            num_steps=num_steps,
+            pbar=True,
+        )
+
+        if normalize_output:
+            out = out / torch.amax(torch.abs(out), dim=(-2, -1), keepdim=True)
+
+        audios = self.transform.batched_inverse_transform(out, pbar=True).cpu()
+        return audios
+
+    @torch.no_grad()
+    def generate_conditional(
+        self,
+        specs,
+        low_highs,
+        cfg_scale=1.0,
+        init_noise=None,
+        num_steps=100,
+        normalize_output=False,
+    ):
+        """
+        inputs: (*datashape) OR (N, *datashape)
+        specs: (N, ...)
+        low_highs: (N, 2)
+        """
+        low_highs = torch.tensor(low_highs)
+        lows, highs = low_highs.unbind(dim=-1)
+
+        inputs = specs.expand(low_highs.shape[0], -1, -1).to(self.device)
+
+        out = self.model.generate(
+            inputs=inputs,
+            lows=lows,
+            highs=highs,
+            cfg_scale=cfg_scale,
+            init_noise=init_noise,
+            num_steps=num_steps,
+            pbar=True,
+        )
+
+        if normalize_output:
+            out = out / torch.amax(torch.abs(out), dim=(-2, -1), keepdim=True)
+
+        audios = self.transform.batched_inverse_transform(out, pbar=True).cpu()
+        return audios
 
 
 def mux(video_path, audio_path, out_path):
@@ -367,15 +441,13 @@ def mux(video_path, audio_path, out_path):
         "-c:v",
         "libx264",
         "-crf",
-        "14",
+        "23",
         "-preset",
-        "slow",
-        "-pix_fmt",
-        "yuv420p",
+        "veryfast",
         "-c:a",
-        "aac",
+        "libmp3lame",
         "-b:a",
-        "320k",
+        "160k",
         "-shortest",
         "-movflags",
         "+faststart",

@@ -37,20 +37,29 @@ class EDM(nn.Module):
     def generate(
         self,
         batch_size=1,
+        init_noise=None,
         num_steps=35,
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
+        heun=True,
         pbar=False,
+        guidance_fcn=None,
+        guidance_scale=1.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
     ):
         device = next(self.parameters()).device
         dtype = next(self.parameters()).dtype
 
         # Initialize generation and noise levels
-        x_curr = (
-            torch.randn((batch_size, *self.datashape), dtype=dtype, device=device)
-            * sigma_max
-        )
+        if init_noise is None:
+            x_curr = (
+                torch.randn((batch_size, *self.datashape), dtype=dtype, device=device)
+                * sigma_max
+            )
+        else:
+            x_curr = init_noise.to(dtype=dtype, device=device)
 
         sigmas = (
             torch.linspace(
@@ -76,15 +85,23 @@ class EDM(nn.Module):
             d_curr = self._get_derivative(
                 x_curr,
                 self._add_dims(sigma, batch_size),
+                guidance_fcn=guidance_fcn,
+                guidance_scale=guidance_scale,
+                guidance_mode=guidance_mode,
+                **guidance_fcn_kwargs,
             )
 
             x_next = x_curr + d_curr * delta_sigma
 
-            if step != num_steps - 1:
-                # Huen Correction
+            if heun and step != num_steps - 1:
+                # Heun Correction
                 d_next = self._get_derivative(
                     x_next,
                     self._add_dims(sigma_next, batch_size),
+                    guidance_fcn=guidance_fcn,
+                    guidance_scale=guidance_scale,
+                    guidance_mode=guidance_mode,
+                    **guidance_fcn_kwargs,
                 )
                 d = (d_curr + d_next) / 2
                 x_next = x_curr + d * delta_sigma
@@ -97,8 +114,36 @@ class EDM(nn.Module):
         c_skip, c_out, c_in, c_noise = self._get_cs(sigma)
         return c_skip * x + c_out * self.net(c_in * x, c_noise)
 
-    def _get_derivative(self, x, sigma):
-        return (x - self._denoise(x, sigma=sigma)) / sigma
+    def _get_derivative(
+        self,
+        x,
+        sigma,
+        guidance_fcn=None,
+        guidance_scale=1.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
+    ):
+        denoised = self._denoise(x, sigma=sigma)
+        d = (x - denoised) / sigma
+
+        if guidance_fcn is not None and guidance_scale > 0:
+            if guidance_mode == "x0":
+                pred = denoised
+            elif guidance_mode == "xt":
+                pred = x
+
+            with torch.enable_grad():
+                pred = pred.detach().requires_grad_(True)
+                loss = guidance_fcn(pred, **guidance_fcn_kwargs)
+                g = torch.autograd.grad(
+                    loss, pred, create_graph=False, retain_graph=False
+                )[0].detach()
+
+            # derivative points to the forward process
+            # (delta_sigma is negative during generation)
+            d = d + guidance_scale * g
+
+        return d
 
     def _add_dims(self, x, N):
         assert x.ndim < 2
@@ -180,3 +225,39 @@ class FAD(Callback):
             mean1=ref_mean, cov1=ref_cov, embeddings2=embs
         )
         pl_module.log("FAD/max_fad", fad, sync_dist=True)
+
+
+def spectral_guidance(
+    x,
+    guidance_lows,
+    guidance_highs,
+    w_iso,
+    reference,
+    w_reference,
+    n_fft=1024,
+):
+    F = n_fft // 2 + 1
+    v = torch.linspace(0, 1, F)
+
+    # Select spectrum inside selected band
+    fft_mask = (v >= guidance_lows.unsqueeze(1)) & (v <= guidance_highs.unsqueeze(1))
+    fft_mask = fft_mask.unsqueeze(-2).to(device=x.device, dtype=x.dtype)
+
+    # Flip mask for outside selected band
+    inv_fft_mask = 1 - fft_mask
+
+    x_spectrum = torch.fft.rfft(x, n=n_fft)
+
+    # Isolation Loss
+    x_power_spectrum = torch.abs(x_spectrum) ** 2
+    loss_iso = torch.sum(inv_fft_mask * x_power_spectrum)
+
+    # Reference Loss
+    if reference is not None:
+        ref_spectrum = torch.fft.rfft(reference, n=n_fft)
+        squared_errors = torch.abs(ref_spectrum - x_spectrum) ** 2
+        loss_reference = torch.sum(fft_mask * squared_errors)
+    else:
+        loss_reference = 0
+
+    return w_iso * loss_iso + w_reference * loss_reference

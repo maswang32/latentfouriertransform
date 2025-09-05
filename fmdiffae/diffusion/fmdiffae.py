@@ -73,7 +73,13 @@ class FMDiffAE(nn.Module):
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
+        heun=True,
+        invert=False,
         pbar=False,
+        guidance_fcn=None,
+        guidance_scale=0.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
     ):
         """
         Assume data and latents (ignoring batch-like dims) have the same number of dims.
@@ -185,25 +191,42 @@ class FMDiffAE(nn.Module):
             )
 
         # Initialize generation and noise levels
-        if init_noise is None:
-            x_curr = (
-                torch.randn((batch_size, *self.datashape), dtype=dtype, device=device)
-                * sigma_max
-            )
-        else:
-            x_curr = init_noise.to(dtype=dtype, device=device)
+        if not invert:
+            if init_noise is None:
+                x_curr = (
+                    torch.randn(
+                        (batch_size, *self.datashape), dtype=dtype, device=device
+                    )
+                    * sigma_max
+                )
+            else:
+                x_curr = init_noise.to(dtype=dtype, device=device)
 
-        sigmas = (
-            torch.linspace(
-                sigma_max ** (1 / rho),
-                sigma_min ** (1 / rho),
-                num_steps,
-                dtype=dtype,
-                device=device,
+            sigmas = (
+                torch.linspace(
+                    sigma_max ** (1 / rho),
+                    sigma_min ** (1 / rho),
+                    num_steps,
+                    dtype=dtype,
+                    device=device,
+                )
+                ** rho
             )
-            ** rho
-        )
-        sigmas = torch.cat((sigmas, torch.zeros(1, dtype=dtype, device=device)))
+            sigmas = torch.cat((sigmas, torch.zeros(1, dtype=dtype, device=device)))
+
+        else:
+            x_curr = inputs.detach().clone()
+
+            sigmas = (
+                torch.linspace(
+                    sigma_min ** (1 / rho),
+                    sigma_max ** (1 / rho),
+                    num_steps + 1,
+                    dtype=dtype,
+                    device=device,
+                )
+                ** rho
+            )
 
         # Generation Loop
         iterator = range(num_steps)
@@ -219,17 +242,25 @@ class FMDiffAE(nn.Module):
                 sigma=sigma,
                 zs=zs,
                 blend_weights=blend_weights,
+                guidance_fcn=guidance_fcn,
+                guidance_scale=guidance_scale,
+                guidance_mode=guidance_mode,
+                **guidance_fcn_kwargs,
             )
 
             x_next = x_curr + d_curr * delta_sigma
 
-            if step != num_steps - 1:
-                # Huen Correction
+            if heun and step != num_steps - 1:
+                # Heun Correction
                 d_next = self._get_combined_derivative(
                     x=x_next,
                     sigma=sigma_next,
                     zs=zs,
                     blend_weights=blend_weights,
+                    guidance_fcn=guidance_fcn,
+                    guidance_scale=guidance_scale,
+                    guidance_mode=guidance_mode,
+                    **guidance_fcn_kwargs,
                 )
                 d = (d_curr + d_next) / 2
                 x_next = x_curr + d * delta_sigma
@@ -257,8 +288,14 @@ class FMDiffAE(nn.Module):
         sigma_max=80,
         sigma_min=0.002,
         rho=7,
+        heun=True,
+        invert=False,
         outer_pbar=True,
         inner_pbar=False,
+        guidance_fcn=None,
+        guidance_scale=0.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
     ):
         # Compute total number of examples to generate
         if inputs is not None:
@@ -315,7 +352,13 @@ class FMDiffAE(nn.Module):
                 sigma_max=sigma_max,
                 sigma_min=sigma_min,
                 rho=rho,
+                heun=heun,
+                invert=invert,
                 pbar=inner_pbar,
+                guidance_fcn=guidance_fcn,
+                guidance_scale=guidance_scale,
+                guidance_mode=guidance_mode,
+                **guidance_fcn_kwargs,
             )
             all_outs.append(output.cpu())
 
@@ -338,17 +381,57 @@ class FMDiffAE(nn.Module):
         net_in = torch.cat((c_in * x, z), dim=1)
         return c_skip * x + c_out * self.decoder(net_in, c_noise)
 
-    def _get_derivative(self, x, sigma, z):
+    def _get_derivative(
+        self,
+        x,
+        sigma,
+        z,
+        guidance_fcn=None,
+        guidance_scale=1.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
+    ):
         denoised = self._denoise(x, sigma=sigma, z=z)
-        return (x - denoised) / sigma
+        d = (x - denoised) / sigma
 
-    def _get_combined_derivative(self, x, sigma, zs, blend_weights):
+        if guidance_fcn is not None and guidance_scale > 0:
+            if guidance_mode == "x0":
+                pred = denoised
+            elif guidance_mode == "xt":
+                pred = x
+
+            with torch.enable_grad():
+                pred = pred.detach().requires_grad_(True)
+                loss = guidance_fcn(pred, **guidance_fcn_kwargs)
+                g = torch.autograd.grad(
+                    loss, pred, create_graph=False, retain_graph=False
+                )[0].detach()
+
+            d = d + guidance_scale * g
+
+        return d
+
+    def _get_combined_derivative(
+        self,
+        x,
+        sigma,
+        zs,
+        blend_weights,
+        guidance_fcn=None,
+        guidance_scale=1.0,
+        guidance_mode="x0",
+        **guidance_fcn_kwargs,
+    ):
         batch_size, num_to_blend = zs.shape[0], zs.shape[1]
 
         ds = self._get_derivative(
             x.unsqueeze(1).expand(batch_size, num_to_blend, *x.shape[1:]).flatten(0, 1),
             sigma=self._add_dims(sigma, N=batch_size * num_to_blend),
             z=zs.flatten(0, 1),
+            guidance_fcn=guidance_fcn,
+            guidance_scale=guidance_scale,
+            guidance_mode=guidance_mode,
+            **guidance_fcn_kwargs,
         )
 
         if blend_weights is not None:

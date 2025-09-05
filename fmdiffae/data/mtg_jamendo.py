@@ -78,16 +78,18 @@ if __name__ == "__main__":
         tsv_paths = {
             "train": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-train.tsv",
             "valid": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-validation.tsv",
+            "test": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-test.tsv",
         }
     else:
         tsv_paths = {
             "train": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging-train.tsv",
             "valid": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging-validation.tsv",
+            "test": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-test.tsv",
         }
 
     # Write Audio
     save_dir = os.path.join(save_base_dir, args.save_name)
-    for split in ["train", "valid"]:
+    for split in ["train", "valid", "test"]:
         records = load_jamendo_tsv(tsv_paths[split])
 
         if args.filter_by_one_inst_tag:
@@ -119,52 +121,53 @@ if __name__ == "__main__":
         )
 
     # Save VGGish Embeddings
-    valid_dataset = get_webdataset(
-        split="valid", base_dir=save_dir, data_type="audio", shuffle_size=None
-    )
-    valid_vggish_embeddings = get_embeddings_vggish(valid_dataset, pbar=True)
+    for split in ["valid", "test"]:
+        dataset = get_webdataset(
+            split=split, base_dir=save_dir, data_type="audio", shuffle_size=None
+        )
+        vggish_embeddings = get_embeddings_vggish(dataset, pbar=True)
 
-    valid_vggish_embeddings = valid_vggish_embeddings.numpy().reshape(-1, 128)
-    np.save(
-        os.path.join(save_dir, "valid_vggish_embeddings.npy"),
-        valid_vggish_embeddings,
-    )
+        vggish_embeddings = vggish_embeddings.numpy().reshape(-1, 128)
+        np.save(
+            os.path.join(save_dir, f"{split}_vggish_embeddings.npy"),
+            vggish_embeddings,
+        )
 
-    mean = np.mean(valid_vggish_embeddings, axis=0)
-    np.save(os.path.join(save_dir, "valid_vggish_mean.npy"), mean)
+        mean = np.mean(vggish_embeddings, axis=0)
+        np.save(os.path.join(save_dir, f"{split}_vggish_mean.npy"), mean)
 
-    cov = np.cov(valid_vggish_embeddings, rowvar=False)
-    np.save(os.path.join(save_dir, "valid_vggish_cov.npy"), cov)
+        cov = np.cov(vggish_embeddings, rowvar=False)
+        np.save(os.path.join(save_dir, f"{split}_vggish_cov.npy"), cov)
 
-    # Save approx one-chunk-per-song valid subset for easy metric computation
-    shard_paths = sorted(glob.glob(os.path.join(save_dir, "valid", "data-*.tar")))
-    valid_dataset = (
-        wds.WebDataset(shard_paths, resampled=False, shardshuffle=True)
-        .shuffle(args.wds_maxcount)
-        .decode()
-    )
+        # Save approx one-chunk-per-song valid/test subset for easy metric computation
+        shard_paths = sorted(glob.glob(os.path.join(save_dir, split, "data-*.tar")))
+        dataset = (
+            wds.WebDataset(shard_paths, resampled=False, shardshuffle=True)
+            .shuffle(args.wds_maxcount)
+            .decode()
+        )
 
-    valid_subset_audio = []
-    valid_subset_spec = []
+        subset_audio = []
+        subset_spec = []
 
-    while len(valid_subset_audio) < 2048:
-        seen_song_ids = set()
-        for example in tqdm(valid_dataset, desc="Selecting One Chunk Per Song"):
-            song_id = example["__key__"].rsplit("_", 1)[0]
-            if song_id not in seen_song_ids:
-                print(song_id)
-                valid_subset_audio.append(example["audio.npy"])
-                valid_subset_spec.append(example["spec.npy"])
-                seen_song_ids.add(song_id)
+        while len(subset_audio) < 2048:
+            seen_song_ids = set()
+            for example in tqdm(dataset, desc="Selecting One Chunk Per Song"):
+                song_id = example["__key__"].rsplit("_", 1)[0]
+                if song_id not in seen_song_ids:
+                    print(song_id)
+                    subset_audio.append(example["audio.npy"])
+                    subset_spec.append(example["spec.npy"])
+                    seen_song_ids.add(song_id)
 
-                if len(valid_subset_audio) >= 2048:
-                    break
+                    if len(subset_audio) >= 2048:
+                        break
 
-    valid_subset_audio = np.stack(valid_subset_audio)
-    valid_subset_spec = np.stack(valid_subset_spec)
+        subset_audio = np.stack(subset_audio)
+        subset_spec = np.stack(subset_spec)
 
-    print(valid_subset_audio.shape)
-    print(valid_subset_spec.shape)
+        print(subset_audio.shape)
+        print(subset_spec.shape)
 
-    np.save(os.path.join(save_dir, "valid_subset_audio.npy"), valid_subset_audio)
-    np.save(os.path.join(save_dir, "valid_subset_spec.npy"), valid_subset_spec)
+        np.save(os.path.join(save_dir, f"{split}_subset_audio.npy"), subset_audio)
+        np.save(os.path.join(save_dir, f"{split}_subset_spec.npy"), subset_spec)

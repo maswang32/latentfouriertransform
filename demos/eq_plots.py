@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 
+import librosa
+import scipy
+
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -39,6 +42,7 @@ class Track:
         alpha: float = 1.0,
         linewidth: float = 3,
         start_time: float = 0.0,
+        amp_curves: Optional[np.ndarray] = None,  # N, F
     ):
         self.name = name
         self.low_highs = low_highs
@@ -55,6 +59,8 @@ class Track:
         self.alpha = alpha
         self.linewidth = linewidth
         self.start_time = start_time
+
+        self.amp_curves = amp_curves
 
 
 class BandpassAnimation:
@@ -178,6 +184,9 @@ class BandpassAnimation:
 
                 track_elements["glow_lines"] = glow_lines
 
+                # Fill
+                track_elements["fill"] = None
+
                 self.all_elements[track.name] = track_elements
 
             if len(self.tracks) >= 1:
@@ -231,6 +240,25 @@ class BandpassAnimation:
 
         time_in_cycle = track_time - track.duration * band_idx
 
+        # Interpolate Amplitude Curves
+        if track.amp_curves is not None:
+            n_amp_frames = track.amp_curves.shape[-1]
+            # Temporal Endpoints align to first and last frames
+            t_amp = (time_in_cycle / track.duration) * (n_amp_frames - 1)
+            segment_idx = int(t_amp)
+            t_between = t_amp - segment_idx
+            prev_amp = track.amp_curves[band_idx, segment_idx]
+
+            # Guards aganest case where t_amp = n_amp_frames
+            if t_between > 0:
+                next_amp = track.amp_curves[band_idx, segment_idx + 1]
+                amp = prev_amp + (next_amp - prev_amp) * t_between
+            else:
+                amp = prev_amp
+        else:
+            amp = None
+
+        # Manage Transitions between low/highs, and ceilings
         if time_in_cycle < track.transition_duration and band_idx > 0:
             transition_progress = time_in_cycle / track.transition_duration
             t = self.smooth_step(0, 1, transition_progress)
@@ -246,9 +274,9 @@ class BandpassAnimation:
             interpolated_floor_ceiling = (
                 prev_floor_ceiling + (curr_floor_ceiling - prev_floor_ceiling) * t
             )
-            return interpolated_band, interpolated_floor_ceiling
+            return interpolated_band, interpolated_floor_ceiling, amp
         else:
-            return track.low_highs[band_idx], track.floor_ceilings[band_idx]
+            return track.low_highs[band_idx], track.floor_ceilings[band_idx], amp
 
     def update(self, frame):
         curr_time = frame / self.FPS
@@ -256,7 +284,7 @@ class BandpassAnimation:
 
         for track in self.tracks:
             track_elements = self.all_elements[track.name]
-            (low, high), (floor, ceiling) = self.get_track_state_at_time(
+            (low, high), (floor, ceiling), amp = self.get_track_state_at_time(
                 track, curr_time
             )
             curve = self.calculate_curve(low, high, floor, ceiling)
@@ -268,6 +296,24 @@ class BandpassAnimation:
             for glow_line in track_elements["glow_lines"]:
                 glow_line.set_data(self.x_display, curve)
                 artists.append(glow_line)
+
+            if amp is not None:
+                prev_fill = track_elements.get("fill")
+                if prev_fill is not None:
+                    prev_fill.remove()
+
+                new_fill = self.ax.fill_between(
+                    self.x_display,
+                    self.y_lim[0],
+                    # curve,
+                    np.minimum(amp, curve),
+                    color=track.color,
+                    alpha=np.clip(amp, 0, 1),
+                    zorder=1,
+                )
+                track_elements["fill"] = new_fill
+                artists.append(new_fill)
+
         return artists
 
     def animate(self, duration, save_path=None):
@@ -314,6 +360,10 @@ class AudioGenerator:
         init_noise=None,
         num_steps=100,
         normalize_output=False,
+        guidance_scale=None,
+        w_iso=0,
+        w_reference=1e-4,
+        use_inversion=False,
     ):
         num = len(low_highs)
         lows, highs = torch.tensor(low_highs).unbind(dim=-1)
@@ -324,6 +374,30 @@ class AudioGenerator:
         inputs = spec.expand(num, 2, -1, -1).to(self.device)
         blend_weights = [floor, ceiling]
 
+        guidance_args = {}
+        if guidance_scale is not None:
+            z_reference = self.model.encoder(spec.unsqueeze(0).to(self.device)).detach()
+            guidance_args.update(
+                guidance_fcn=self.latent_spectral_guidance,
+                guidance_scale=guidance_scale,
+                guidance_mode="x0",
+                guidance_lows=lows.view(-1),
+                guidance_highs=highs.view(-1),
+                w_iso=w_iso,
+                z_reference=z_reference,
+                w_reference=w_reference,
+            )
+
+        if use_inversion:
+            assert init_noise is None, "Cannot provide init_noise if doing inversion"
+            init_noise = self.model.generate(
+                inputs=spec.unsqueeze(0).to(self.device),
+                lows=[0.7],  # No lows or highs
+                highs=[0.3],
+                num_steps=35,
+                invert=True,
+            )
+
         out = self.model.generate(
             inputs=inputs,
             lows=lows,
@@ -333,6 +407,7 @@ class AudioGenerator:
             init_noise=init_noise,
             num_steps=num_steps,
             pbar=True,
+            **guidance_args,
         )
 
         if normalize_output:
@@ -425,6 +500,45 @@ class AudioGenerator:
         audios = self.transform.batched_inverse_transform(out, pbar=True).cpu()
         return audios
 
+    def latent_spectral_guidance(
+        self,
+        x,
+        guidance_lows,
+        guidance_highs,
+        w_iso=0,
+        z_reference=None,
+        w_reference=1e-4,
+    ):
+        n_fft = self.model.freq_mask.n_fft
+        F = n_fft // 2 + 1
+        v = torch.linspace(0, 1, F)
+
+        # Encode x
+        z = self.model.encoder(x)
+
+        # Select spectrum inside selected band
+        fft_mask = (v >= guidance_lows.unsqueeze(1)) & (
+            v <= guidance_highs.unsqueeze(1)
+        )
+        fft_mask = fft_mask.unsqueeze(-2).to(device=z.device, dtype=z.dtype)
+        inv_fft_mask = 1 - fft_mask
+
+        z_spectrum = torch.fft.rfft(z, n=n_fft)
+
+        # Isolation Loss
+        power_spectrum = torch.abs(z_spectrum) ** 2
+        loss_iso = torch.sum(inv_fft_mask * power_spectrum)
+
+        # Reference Loss
+        if z_reference is not None:
+            ref_spectrum = torch.fft.rfft(z_reference, n=n_fft)
+            squared_errors = torch.abs(ref_spectrum - z_spectrum) ** 2
+            loss_reference = torch.sum(fft_mask * squared_errors)
+        else:
+            loss_reference = 0
+
+        return w_iso * loss_iso + w_reference * loss_reference
+
 
 def mux(video_path, audio_path, out_path):
     cmd = [
@@ -454,3 +568,27 @@ def mux(video_path, audio_path, out_path):
         out_path,
     ]
     subprocess.run(cmd, check=True)
+
+
+def compute_loudness_curve(
+    x, n_fft=2048, hop_length=256, fs=22050, win_std_s=0.05, win_length=51
+):
+    pow_spec = (
+        np.abs(librosa.stft(y=x, n_fft=n_fft, hop_length=hop_length, center=True)) ** 2
+    )
+
+    weights = librosa.A_weighting(librosa.fft_frequencies(n_fft=n_fft, sr=fs))
+    weights = 10 ** (weights / 10)
+    power_per_frame = np.mean(pow_spec * weights[..., None], axis=-2)
+    integrated_loudness = 10 * np.log10(power_per_frame)
+
+    win_std_frames = (win_std_s * fs) / hop_length
+
+    kernel = scipy.signal.windows.gaussian(win_length, std=win_std_frames)
+    kernel = kernel.reshape((1,) * (integrated_loudness.ndim - 1) + (-1,))
+    return scipy.signal.convolve(integrated_loudness, kernel, mode="same")
+
+
+def adjust_loudness_curve(x, pow=0.5, eps=1e-7):
+    x = x - np.min(x) + eps
+    return (x / np.max(x)) ** pow

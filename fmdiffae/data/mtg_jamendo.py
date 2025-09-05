@@ -59,13 +59,13 @@ if __name__ == "__main__":
         "--chunk_length_samples",
         help="Length of each data chunk in samples",
         type=int,
-        default=65536,
+        default=131072,
     )
     parser.add_argument(
         "--wds_maxcount",
         help="Num. Examples in each .tar file",
         type=int,
-        default=8192,
+        default=4096,
     )
     args = parser.parse_args()
 

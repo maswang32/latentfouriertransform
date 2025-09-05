@@ -526,8 +526,8 @@ class AudioGenerator:
         z_spectrum = torch.fft.rfft(z, n=n_fft)
 
         # Isolation Loss
-        power_spectrum = torch.abs(z_spectrum) ** 2
-        loss_iso = torch.sum(inv_fft_mask * power_spectrum)
+        z_power_spectrum = torch.abs(z_spectrum) ** 2
+        loss_iso = torch.sum(inv_fft_mask * z_power_spectrum)
 
         # Reference Loss
         if z_reference is not None:

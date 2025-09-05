@@ -120,8 +120,8 @@ if __name__ == "__main__":
             chunk_audio_kwargs={"chunk_length_samples": args.chunk_length_samples},
         )
 
-    # Save VGGish Embeddings
     for split in ["valid", "test"]:
+        # Save VGGish Embeddings
         dataset = get_webdataset(
             split=split, base_dir=save_dir, data_type="audio", shuffle_size=None
         )

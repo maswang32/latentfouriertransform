@@ -7,6 +7,7 @@ import argparse
 
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
+from fmdiffae.utils.fad import get_embeddings_vggish
 
 
 # Compute Low_Highs
@@ -59,27 +60,11 @@ def get_low_highs(mode):
     return low_highs
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("exp_dir")
-    parser.add_argument("baseline_name")
-    parser.add_argument("mode")
-    parser.add_argument("low_high_idx")
-    parser.add_argument("ckpt_path")
-    parser.add_argument("data_path")
-    parser.add_argument("--num_examples", type=int, default=1024)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--transform_batch_size", type=int, default=128)
-    parser.add_argument("--cfg_scale", type=float, default=2.0)
-    parser.add_argument("--num_steps", type=int, default=100)
-    args = parser.parse_args()
-
-    # Get low_highs
-    low_highs = get_low_highs(args.mode)[args.low_high_idx]
-    print(f"{np.array(low_highs.shape)=}")
+def main(low_highs, args):
+    print(f"{np.array(low_highs).shape=}")
 
     # Load Data
-    data = torch.from_numpy(np.from_numpy(args.data_path))
+    data = torch.from_numpy(np.load(args.data_path))
     inputs = data[: args.num_examples]
     if args.mode == "blend":
         inputs_2 = data[args.num_examples : 2 * args.num_examples]
@@ -93,18 +78,18 @@ if __name__ == "__main__":
         identifier = f"{low_highs[0][0]:.4f}_{low_highs[0][1]:.4f} x {low_highs[1][0]:.4f}_{low_highs[1][1]:.4f}"
         blend_weights = [0.5, 0.5]
 
-    save_dir = os.path.join(args.exp_dir, args.baseline_name, identifier)
+    save_dir = os.path.join(args.exp_dir, args.mode, args.baseline_name, identifier)
     os.makedirs(save_dir, exist_ok=True)
 
     # FMDiffAE Baseline
-    if args.baseline_name == "ours":
+    if args.baseline_name in ["fmdiffae_unet", "fmdiffae_point"]:
         # Make low_highs tensors
         low_highs = [low_highs] * args.num_examples
         lows, highs = torch.tensor(low_highs).unbind(-1)
 
-        print(f"{torch.tensor(low_highs).shape}")
-        print(f"{lows.shape}")
-        print(f"{highs.shape}")
+        print(f"{torch.tensor(low_highs).shape=}")
+        print(f"{lows.shape=}")
+        print(f"{highs.shape=}")
 
         # Load Model
         model = FMDiffAEModule.load_torch_model(
@@ -138,3 +123,30 @@ if __name__ == "__main__":
         print(f"{audios.shape=}")
 
         torch.save(audios, os.path.join(save_dir, "audios.pt"))
+
+        # Compute VGGish Embeddings
+        vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
+        print(f"{vggish_embeddings.shape=}")
+        torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("exp_dir")
+    parser.add_argument("baseline_name")
+    parser.add_argument("mode")
+    parser.add_argument("low_high_idx", type=int)
+    parser.add_argument("ckpt_path")
+    parser.add_argument("data_path")
+    parser.add_argument("--num_examples", type=int, default=1024)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--transform_batch_size", type=int, default=128)
+    parser.add_argument("--cfg_scale", type=float, default=2.0)
+    parser.add_argument("--num_steps", type=int, default=100)
+    args = parser.parse_args()
+
+    if args.low_high_idx == -1:
+        [main(low_highs, args) for low_highs in get_low_highs(args.mode)]
+    else:
+        low_highs = get_low_highs(args.mode)[args.low_high_idx]
+        main(low_highs, args)

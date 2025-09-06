@@ -2,9 +2,11 @@ import os
 
 import numpy as np
 import torch
+import torchaudio
 
 import argparse
 
+from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 from fmdiffae.utils.fad import get_embeddings_vggish
@@ -61,7 +63,7 @@ def get_low_highs(mode):
 
 
 def main(low_highs, args):
-    print(f"{np.array(low_highs).shape=}")
+    print(f"{np.array(low_highs).shape=}", flush=True)
 
     # Load Data
     data = torch.from_numpy(np.load(args.data_path))
@@ -77,20 +79,22 @@ def main(low_highs, args):
     elif args.mode == "blend":
         identifier = f"{low_highs[0][0]:.4f}_{low_highs[0][1]:.4f} x {low_highs[1][0]:.4f}_{low_highs[1][1]:.4f}"
         blend_weights = [0.5, 0.5]
+    else:
+        raise ValueError
 
     save_dir = os.path.join(args.exp_dir, args.mode, args.baseline_name, identifier)
     os.makedirs(save_dir, exist_ok=True)
 
+    # Make low_highs tensors
+    low_highs = [low_highs] * args.num_examples
+    lows, highs = torch.tensor(low_highs).unbind(-1)
+    print(f"{torch.tensor(low_highs).shape=}")
+    print(f"{lows.shape=}", flush=True)
+    print(f"{highs.shape=}", flush=True)
+    print(f"{inputs.shape=}", flush=True)
+
     # FMDiffAE Baseline
     if args.baseline_name in ["fmdiffae_unet", "fmdiffae_point"]:
-        # Make low_highs tensors
-        low_highs = [low_highs] * args.num_examples
-        lows, highs = torch.tensor(low_highs).unbind(-1)
-
-        print(f"{torch.tensor(low_highs).shape=}")
-        print(f"{lows.shape=}")
-        print(f"{highs.shape=}")
-
         # Load Model
         model = FMDiffAEModule.load_torch_model(
             ckpt_path=args.ckpt_path,
@@ -110,7 +114,7 @@ def main(low_highs, args):
             num_steps=args.num_steps,
         )
 
-        print(f"{specs.shape=}")
+        print(f"{specs.shape=}", flush=True)
 
         # Invert, Save Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -120,14 +124,68 @@ def main(low_highs, args):
             pbar=True,
         )
 
-        print(f"{audios.shape=}")
+        print(f"{audios.shape=}", flush=True)
 
         torch.save(audios, os.path.join(save_dir, "audios.pt"))
 
-        # Compute VGGish Embeddings
-        vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
-        print(f"{vggish_embeddings.shape=}")
-        torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
+    if args.baseline_name == "audio":
+        print(f"{inputs.shape=}", flush=True)
+        inputs = torchaudio.functional.resample(inputs, 256, 1).unsqueeze(-2)
+        print(f"{inputs.shape=}", flush=True)
+        freq_mask = CorrelatedFFTMask(n_fft=inputs.shape[-1])
+
+        if args.mode == "cond":
+            out = freq_mask(inputs, lows=lows, highs=highs)
+        elif args.mode == "blend":
+            out = (
+                freq_mask(inputs[:, 0], lows=lows[:, 0], highs=highs[:, 0])
+                * blend_weights[0]
+                + freq_mask(inputs[:, 1], lows=lows[:, 1], highs=highs[:, 1])
+                * blend_weights[1]
+            )
+        else:
+            raise ValueError
+
+        print(f"{out.shape=}", flush=True)
+
+        audios = torchaudio.functional.resample(out, 1, 256).squeeze(-2)
+
+        print(f"{audios.shape=}", flush=True)
+        torch.save(audios, os.path.join(save_dir, "audios.pt"))
+
+    if args.baseline_name == "spectrogram":
+        freq_mask = CorrelatedFFTMask(n_fft=inputs.shape[-1])
+
+        if args.mode == "cond":
+            specs = freq_mask(inputs, lows=lows, highs=highs)
+        elif args.mode == "blend":
+            specs = (
+                freq_mask(inputs[:, 0], lows=lows[:, 0], highs=highs[:, 0])
+                * blend_weights[0]
+                + freq_mask(inputs[:, 1], lows=lows[:, 1], highs=highs[:, 1])
+                * blend_weights[1]
+            )
+        else:
+            raise ValueError
+
+        print(f"specs.shape={specs.shape}", flush=True)
+        torch.save(specs, os.path.join(save_dir, "specs.pt"))
+
+        transform = BigVGANTransform(batch_size=args.transform_batch_size)
+        transform.model = transform.model.cuda()
+        audios = transform.batched_inverse_transform(
+            specs,
+            pbar=True,
+        )
+
+        print(f"{audios.shape=}", flush=True)
+
+        torch.save(audios, os.path.join(save_dir, "audios.pt"))
+
+    # Compute VGGish Embeddings
+    vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
+    print(f"{vggish_embeddings.shape=}", flush=True)
+    torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
 
 
 if __name__ == "__main__":

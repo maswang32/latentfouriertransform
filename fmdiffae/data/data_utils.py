@@ -95,6 +95,12 @@ def save_webdataset(
 
         for i in tqdm(indices.tolist(), desc="Writing Chunks"):
             chunks = chunk_audio(audio_paths[i], **chunk_audio_kwargs)
+
+            # Filter Out Empty Chunks
+            print(f"\n{i}\t{chunks.shape}\t{audio_names[i]}", flush=True)
+            if chunks.numel() == 0:
+                continue
+
             specs = transform(chunks)
             chunks = chunks.numpy()
             specs = specs.numpy()

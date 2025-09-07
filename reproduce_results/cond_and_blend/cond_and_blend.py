@@ -12,6 +12,10 @@ from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 from fmdiffae.utils.fad import get_embeddings_vggish
+from reproduce_results.baselines_and_ablations.unconditional import (
+    spectral_guidance,
+    dual_spectral_guidance,
+)
 
 
 # Compute Low_Highs
@@ -118,7 +122,7 @@ def main(low_highs, args):
 
         print(f"{specs.shape=}", flush=True)
 
-        # Invert, Save Audio
+        # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
         transform.model = transform.model.cuda()
         audios = transform.batched_inverse_transform(
@@ -226,6 +230,72 @@ def main(low_highs, args):
             audios = audios.squeeze(-2)
             print(f"after squeeze {audios.shape=}")
 
+    if args.baseline_name == "guidance":
+        # Load Model
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.ckpt_path,
+            strict=True,
+        ).cuda()
+
+        # Generate
+        batched_indices = torch.arange(inputs.shape[0]).split(args.batch_size, dim=0)
+
+        specs = []
+        for batch_indices in batched_indices:
+            batch_inputs = inputs[batch_indices].cuda()
+            batch_lows = lows[batch_indices]
+            batch_highs = highs[batch_indices]
+
+            if args.mode == "cond":
+                batch_specs = model.generate(
+                    batch_size=args.batch_size,
+                    num_steps=args.num_steps,
+                    pbar=True,
+                    guidance_fcn=spectral_guidance,
+                    guidance_scale=args.guidance_scale,
+                    guidance_mode="x0",
+                    guidance_lows=lows[batch_indices],
+                    guidance_highs=highs[batch_indices],
+                    w_iso=0,
+                    reference=batch_inputs,
+                    w_reference=1,
+                    n_fft=batch_inputs.shape[-1],
+                ).cpu()
+            elif args.mode == "blend":
+                batch_specs = model.generate(
+                    batch_size=args.batch_size,
+                    num_steps=args.num_steps,
+                    pbar=True,
+                    guidance_fcn=dual_spectral_guidance,
+                    guidance_scale=args.guidance_scale,
+                    guidance_mode="x0",
+                    both_guidance_lows=[
+                        batch_lows[:, 0],
+                        batch_lows[:, 1],
+                    ],
+                    both_guidance_highs=[
+                        batch_highs[:, 0],
+                        batch_highs[:, 1],
+                    ],
+                    references=[batch_inputs[:, 0], batch_inputs[:, 1]],
+                    n_fft=batch_inputs.shape[-1],
+                ).cpu()
+            specs.append(batch_specs)
+
+        specs = torch.cat(specs, dim=0)
+
+        print(f"{specs.shape=}", flush=True)
+
+        # Invert to Audio
+        transform = BigVGANTransform(batch_size=args.transform_batch_size)
+        transform.model = transform.model.cuda()
+        audios = transform.batched_inverse_transform(
+            specs,
+            pbar=True,
+        )
+
+        print(f"{audios.shape=}", flush=True)
+
     # Save Audios
     torch.save(audios, os.path.join(save_dir, "audios.pt"))
 
@@ -248,6 +318,7 @@ if __name__ == "__main__":
     parser.add_argument("--transform_batch_size", type=int, default=128)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
     parser.add_argument("--num_steps", type=int, default=100)
+    parser.add_argument("--guidance_scale", type=int, default=1e-3)
     args = parser.parse_args()
 
     if args.low_high_idx == -1:

@@ -261,3 +261,31 @@ def spectral_guidance(
         loss_reference = 0
 
     return w_iso * loss_iso + w_reference * loss_reference
+
+
+def dual_spectral_guidance(
+    x,
+    both_guidance_lows,
+    both_guidance_highs,
+    references,
+    n_fft=1024,
+):
+    loss = spectral_guidance(
+        x,
+        both_guidance_lows[0],
+        both_guidance_highs[0],
+        0,
+        references[0],
+        1,
+        n_fft=n_fft,
+    )
+    loss += spectral_guidance(
+        x,
+        both_guidance_lows[1],
+        both_guidance_highs[1],
+        0,
+        references[1],
+        1,
+        n_fft=n_fft,
+    )
+    return loss

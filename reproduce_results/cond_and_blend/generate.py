@@ -18,8 +18,8 @@ from reproduce_results.baselines_and_ablations.unconditional import (
 )
 
 
-# Compute Low_Highs
-def get_low_highs(mode):
+# Compute All Low_Highs
+def get_all_low_highs(mode):
     vs = [
         0.0000,
         0.0078,
@@ -53,9 +53,9 @@ def get_low_highs(mode):
     ]
 
     if mode == "cond":
-        low_highs = low_highs_2 + low_highs_4 + low_highs_8
+        all_low_highs = low_highs_2 + low_highs_4 + low_highs_8
     elif mode == "blend":
-        low_highs = [
+        all_low_highs = [
             [low_highs_4[0], low_highs_4[1]],
             [low_highs_4[0], low_highs_4[2]],
             [low_highs_4[0], low_highs_4[3]],
@@ -65,7 +65,7 @@ def get_low_highs(mode):
         ]
     else:
         raise ValueError("Mode must be cond or blend")
-    return low_highs
+    return all_low_highs
 
 
 def main(low_highs, args):
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.low_high_idx == -1:
-        [main(low_highs, args) for low_highs in get_low_highs(args.mode)]
+        [main(low_highs, args) for low_highs in get_all_low_highs(args.mode)]
     else:
-        low_highs = get_low_highs(args.mode)[args.low_high_idx]
+        low_highs = get_all_low_highs(args.mode)[args.low_high_idx]
         main(low_highs, args)

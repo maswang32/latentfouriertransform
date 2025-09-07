@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import torch
 
@@ -7,6 +9,10 @@ import librosa.onset as O
 
 from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.utils.fad import compute_fad_from_embeddings
+from reproduce_results.cond_and_blend.generate import (
+    get_all_low_highs,
+    get_band_identifier,
+)
 
 
 class FeatureExtractor:
@@ -165,10 +171,116 @@ class FeatureExtractor:
         return err1[0], err2[0]
 
 
-def compute_fad_from_paths(
-    target_emb_path,
-    ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
-):
-    targ_emb = torch.load(target_emb_path).numpy().reshape(-1, 128)
-    ref_emb = np.load(ref_emb_path).reshape(-1, 128)
-    return compute_fad_from_embeddings(embeddings1=targ_emb, embeddings2=ref_emb)
+class Aggregator:
+    def __init__(
+        self,
+        exp_dir,
+        num_examples=1024,
+        ref_audios_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
+        ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
+        n_fft=1024,
+        hop_length=256,
+        win_length=1024,
+        fs=22050,
+    ):
+        self.exp_dir = exp_dir
+        self.num_examples = num_examples
+
+        # Prepare Audio Inputs
+        all_ref_audios = np.load(ref_audios_path)
+        self.ref_audios_cond = all_ref_audios[:num_examples]
+        self.ref_audios_blend = (
+            all_ref_audios[:num_examples],
+            all_ref_audios[num_examples : 2 * num_examples],
+        )
+
+        # Get Embeddings
+        self.ref_embs = np.load(ref_emb_path)
+
+        self.fe = FeatureExtractor(
+            n_fft=n_fft, hop_length=hop_length, win_length=win_length, fs=fs
+        )
+
+        # Get Lows/Highs
+        self.all_low_highs_cond = get_all_low_highs("cond")
+        self.all_low_highs_blend = get_all_low_highs("blend")
+
+    def aggregate_metrics_from_path(
+        self, mode, baseline_name, low_highs, list_of_metrics
+    ):
+        results = {}
+
+        # Get Directory containing generations
+        identifier = get_band_identifier(low_highs, mode)
+        load_dir = os.path.join(self.exp_dir, mode, baseline_name, identifier)
+
+        # Get Lows/Highs
+        lows, highs = torch.tensor(self.num_examples * [low_highs]).unbind(-1)
+
+        # Get Audios
+        baseline_audios = torch.load(os.path.join(load_dir, "audios.pt")).numpy()
+
+        for metric in list_of_metrics:
+            if mode == "cond":
+                errs = self.fe.compute_in_and_out_error(
+                    baseline_audios, self.ref_audios_cond, lows, highs, metric
+                )
+                results[metric] = {"in": errs[0], "out": errs[1]}
+            elif mode == "blend":
+                errs = self.fe.compute_blended_error(
+                    x=baseline_audios,
+                    ref1=self.ref_audios_blend[:, 0],
+                    ref2=self.ref_audios_blend[:, 1],
+                    lows1=lows[:, 0],
+                    lows2=lows[:, 1],
+                    highs1=highs[:, 0],
+                    highs2=highs[:, 1],
+                    metric=metric,
+                )
+                results[metric] = {"band1": errs[0], "band2": errs[1]}
+
+        # Get VGGish Embeddings
+        baseline_emb = (
+            torch.load(os.path.join(load_dir, "vggish_embeddings"))
+            .numpy()
+            .reshape(-1, 128)
+        )
+        results["fad"] = compute_fad_from_embeddings(
+            embeddings1=baseline_emb, embeddings2=self.ref_embs
+        )
+        return results
+
+    def aggregate_metrics_all(
+        self,
+        list_of_tasks=["blend", "cond"],
+        list_of_baselines=[
+            "audio",
+            "dac",
+            "guidance",
+            "spectrogram",
+            "fmdiffae_point",
+            "fmdiffae_unet",
+        ],
+        list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
+    ):
+        all_results = {}
+        for task in list_of_tasks:
+            all_results[task] = {}
+
+            for baseline_name in list_of_baselines:
+                all_results[task][baseline_name] = {}
+
+                for low_highs in (
+                    self.all_low_highs_cond
+                    if task == "cond"
+                    else self.all_low_highs_blend
+                ):
+                    all_results[task][baseline_name][get_band_identifier(low_highs)] = (
+                        self.aggregate_metrics_from_path(
+                            mode=task,
+                            baseline_name=baseline_name,
+                            low_highs=low_highs,
+                            list_of_metrics=list_of_metrics,
+                        )
+                    )
+        return all_results

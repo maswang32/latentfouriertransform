@@ -86,6 +86,25 @@ class FeatureExtractor:
             constant_values=0.0,
         )
 
+    def compute_avg_loudness_correlation(self, x_loudness, y_loudness):
+        """
+        N x 1 x T
+        """
+        x_loudness = x_loudness.squeeze(axis=1) # N, T
+        y_loudness = y_loudness.squeeze(axis=1) # N, T
+        
+        x_demeaned = x_loudness - np.mean(x_loudness, axis=-1, keepdims=True) # N, T
+        y_demeaned = y_loudness - np.mean(y_loudness, axis=-1, keepdims=True) # N, T
+        numerator = np.sum(x_demeaned * y_demeaned, axis=-1)
+        
+        sq_norm_1 = np.sum(x_demeaned**2, axis=-1)
+        sq_norm_2 = np.sum(y_demeaned**2, axis=-1)
+        
+        denom = np.clip(np.sqrt(sq_norm_1 * sq_norm_2), 1e-7, None)
+        
+        coefficients =  numerator / denom
+        return np.mean(coefficients)
+
     def compute_avg_mcd(self, x_mfcc, y_mfcc):
         alpha = (10 * np.sqrt(2)) / np.log(10)
 
@@ -98,3 +117,6 @@ class FeatureExtractor:
         N x 6 x T
         """
         return np.linalg.norm(x_tonnetz - y_tonnetz, axis=-2).mean()
+
+    def compute_in_and_out_error(self, x, y, lows, highs, metric):
+        

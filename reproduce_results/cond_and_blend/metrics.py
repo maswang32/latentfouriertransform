@@ -85,3 +85,16 @@ class FeatureExtractor:
             mode="constant",
             constant_values=0.0,
         )
+
+    def compute_avg_mcd(self, x_mfcc, y_mfcc):
+        alpha = (10 * np.sqrt(2)) / np.log(10)
+
+        # Sum over channels
+        sum_sq = np.sum((x_mfcc - y_mfcc) ** 2, axis=-2)
+        return alpha * np.mean(np.sqrt(sum_sq))
+
+    def compute_avg_tonnetz_distance(self, x_tonnetz, y_tonnetz):
+        """
+        N x 6 x T
+        """
+        return np.linalg.norm(x_tonnetz - y_tonnetz, axis=-2).mean()

@@ -125,8 +125,8 @@ class FeatureExtractor:
     def beat_spectral_similarity(self, x_oenv, y_oenv):
         x_oenv = x_oenv.squeeze(axis=1)
         y_oenv = y_oenv.squeeze(axis=1)
-        x_beat_spec = librosa.autocorrelate(librosa.utils.normalize(x_oenv))
-        y_beat_spec = librosa.autocorrelate(librosa.utils.normalize(y_oenv))
+        x_beat_spec = librosa.autocorrelate(librosa.utils.normalize(x_oenv, axis=-1))
+        y_beat_spec = librosa.autocorrelate(librosa.utils.normalize(y_oenv, axis=-1))
         return np.mean(self.cosine_similarity(x_beat_spec, y_beat_spec))
 
     def tonnetz_distance(self, x_tonnetz, y_tonnetz):
@@ -155,8 +155,8 @@ class FeatureExtractor:
         else:
             raise NotImplementedError(f"{metric} not implemented")
 
-        x_in = self.freq_mask(x_feat, lows=lows, highs=highs)
-        y_in = self.freq_mask(y_feat, lows=lows, highs=highs)
+        x_in = self.freq_mask(torch.tensor(x_feat), lows=lows, highs=highs).numpy()
+        y_in = self.freq_mask(torch.tensor(y_feat), lows=lows, highs=highs).numpy()
 
         x_out = x_feat - x_in
         y_out = y_feat - y_in
@@ -189,9 +189,12 @@ class Aggregator:
         # Prepare Audio Inputs
         all_ref_audios = np.load(ref_audios_path)
         self.ref_audios_cond = all_ref_audios[:num_examples]
-        self.ref_audios_blend = (
-            all_ref_audios[:num_examples],
-            all_ref_audios[num_examples : 2 * num_examples],
+        self.ref_audios_blend = np.stack(
+            (
+                all_ref_audios[:num_examples],
+                all_ref_audios[num_examples : 2 * num_examples],
+            ),
+            dim=1,
         )
 
         # Get Embeddings
@@ -241,7 +244,7 @@ class Aggregator:
 
         # Get VGGish Embeddings
         baseline_emb = (
-            torch.load(os.path.join(load_dir, "vggish_embeddings"))
+            torch.load(os.path.join(load_dir, "vggish_embeddings.pt"))
             .numpy()
             .reshape(-1, 128)
         )
@@ -252,7 +255,7 @@ class Aggregator:
 
     def aggregate_metrics_all(
         self,
-        list_of_tasks=["blend", "cond"],
+        list_of_modes=["blend", "cond"],
         list_of_baselines=[
             "audio",
             "dac",
@@ -264,23 +267,23 @@ class Aggregator:
         list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
     ):
         all_results = {}
-        for task in list_of_tasks:
-            all_results[task] = {}
+        for mode in list_of_modes:
+            all_results[mode] = {}
 
             for baseline_name in list_of_baselines:
-                all_results[task][baseline_name] = {}
+                all_results[mode][baseline_name] = {}
 
                 for low_highs in (
                     self.all_low_highs_cond
-                    if task == "cond"
+                    if mode == "cond"
                     else self.all_low_highs_blend
                 ):
-                    all_results[task][baseline_name][get_band_identifier(low_highs)] = (
-                        self.aggregate_metrics_from_path(
-                            mode=task,
-                            baseline_name=baseline_name,
-                            low_highs=low_highs,
-                            list_of_metrics=list_of_metrics,
-                        )
+                    all_results[mode][baseline_name][
+                        get_band_identifier(low_highs, mode=mode)
+                    ] = self.aggregate_metrics_from_path(
+                        mode=mode,
+                        baseline_name=baseline_name,
+                        low_highs=low_highs,
+                        list_of_metrics=list_of_metrics,
                     )
         return all_results

@@ -217,12 +217,20 @@ class Aggregator:
         low_highs,
         list_of_metrics,
         save_name=None,
+        overwrite=True,
     ):
         results = {}
 
         # Get Directory containing generations
         identifier = get_band_identifier(low_highs, mode)
         load_dir = os.path.join(self.exp_dir, mode, baseline_name, identifier)
+
+        if save_name is not None:
+            json_path = os.path.join(load_dir, f"{save_name}.json")
+            if not overwrite and os.path.exists(json_path):
+                with open(json_path, "r") as f:
+                    results = json.load(f)
+                    return results
 
         # Get Lows/Highs
         lows, highs = torch.tensor(self.num_examples * [low_highs]).unbind(-1)
@@ -265,8 +273,7 @@ class Aggregator:
         print(f"{mode} \t {baseline_name} \t {low_highs} \t FAD: {results['fad']}")
 
         if save_name is not None:
-            out_path = os.path.join(load_dir, f"{save_name}.json")
-            with open(out_path, "w") as f:
+            with open(json_path, "w") as f:
                 json.dump(results, f, indent=2)
 
         return results
@@ -284,6 +291,7 @@ class Aggregator:
         ],
         list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
         save_name=None,
+        overwrite=True,
     ):
         all_results = {}
         for mode in list_of_modes:
@@ -305,6 +313,7 @@ class Aggregator:
                         low_highs=low_highs,
                         list_of_metrics=list_of_metrics,
                         save_name=save_name,
+                        overwrite=overwrite,
                     )
 
         if save_name is not None:
@@ -319,6 +328,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("exp_dir")
     parser.add_argument("save_name")
+    parser.add_argument("mode")
     parser.add_argument("baseline_name")
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
@@ -346,6 +356,14 @@ if __name__ == "__main__":
         fs=args.fs,
     )
 
+    if args.mode == "all":
+        list_of_modes = [
+            "cond",
+            "blend",
+        ]
+    else:
+        list_of_modes = [args.mode]
+
     if args.baseline_name == "all":
         baseline_names = [
             "guidance",
@@ -358,4 +376,8 @@ if __name__ == "__main__":
     else:
         baseline_names = [args.baseline_name]
 
-    ag.aggregate_metrics_all(list_of_baselines=baseline_names, save_name=args.save_name)
+    ag.aggregate_metrics_all(
+        list_of_modes=list_of_modes,
+        list_of_baselines=baseline_names,
+        save_name=None,
+    )

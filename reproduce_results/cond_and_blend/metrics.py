@@ -1,11 +1,13 @@
-import os
-
 import numpy as np
 import torch
 
 import librosa
 import librosa.feature as F
 import librosa.onset as O
+
+import os
+import json
+import argparse
 
 from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.utils.fad import compute_fad_from_embeddings
@@ -209,7 +211,12 @@ class Aggregator:
         self.all_low_highs_blend = get_all_low_highs("blend")
 
     def aggregate_metrics_from_path(
-        self, mode, baseline_name, low_highs, list_of_metrics
+        self,
+        mode,
+        baseline_name,
+        low_highs,
+        list_of_metrics,
+        save_name=None,
     ):
         results = {}
 
@@ -228,7 +235,7 @@ class Aggregator:
                 errs = self.fe.compute_in_and_out_error(
                     baseline_audios, self.ref_audios_cond, lows, highs, metric
                 )
-                results[metric] = {"in": errs[0], "out": errs[1]}
+                results[metric] = {"in": errs[0].item(), "out": errs[1].item()}
             elif mode == "blend":
                 errs = self.fe.compute_blended_error(
                     x=baseline_audios,
@@ -240,7 +247,7 @@ class Aggregator:
                     highs2=highs[:, 1],
                     metric=metric,
                 )
-                results[metric] = {"band1": errs[0], "band2": errs[1]}
+                results[metric] = {"band1": errs[0].item(), "band2": errs[1].item()}
 
             print(
                 f"{mode} \t {baseline_name} \t {low_highs} \t {metric}: {results[metric]}"
@@ -256,6 +263,12 @@ class Aggregator:
             embeddings1=baseline_emb, embeddings2=self.ref_embs
         )
         print(f"{mode} \t {baseline_name} \t {low_highs} \t FAD: {results['fad']}")
+
+        if save_name is not None:
+            out_path = os.path.join(load_dir, f"{save_name}.json")
+            with open(out_path, "w") as f:
+                json.dump(results, f, indent=2)
+
         return results
 
     def aggregate_metrics_all(
@@ -270,6 +283,7 @@ class Aggregator:
             "fmdiffae_unet",
         ],
         list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
+        save_name=None,
     ):
         all_results = {}
         for mode in list_of_modes:
@@ -290,5 +304,58 @@ class Aggregator:
                         baseline_name=baseline_name,
                         low_highs=low_highs,
                         list_of_metrics=list_of_metrics,
+                        save_name=save_name,
                     )
+
+        if save_name is not None:
+            out_path = os.path.join(self.exp_dir, f"{save_name}.json")
+            with open(out_path, "w") as f:
+                json.dump(all_results, f, indent=2)
+
         return all_results
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("exp_dir")
+    parser.add_argument("save_name")
+    parser.add_argument("baseline_name")
+    parser.add_argument("--num_examples", type=int, default=1024)
+    parser.add_argument(
+        "--ref_audios_path",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
+    )
+    parser.add_argument(
+        "--ref_emb_path",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
+    )
+    parser.add_argument("--n_fft", type=int, default=1024)
+    parser.add_argument("--hop_length", type=int, default=256)
+    parser.add_argument("--win_length", type=int, default=1024)
+    parser.add_argument("--fs", type=int, default=22050)
+    args = parser.parse_args()
+
+    ag = Aggregator(
+        exp_dir=args.exp_dir,
+        num_examples=args.num_examples,
+        ref_audios_path=args.ref_audios_path,
+        ref_emb_path=args.ref_emb_path,
+        n_fft=args.n_fft,
+        hop_length=args.hop_length,
+        win_length=args.win_length,
+        fs=args.fs,
+    )
+
+    if args.baseline_name == "all":
+        baseline_names = [
+            "guidance",
+            "fmdiffae_point",
+            "fmdiffae_unet",
+            "dac",
+            "spectrogram",
+            "audio",
+        ]
+    else:
+        baseline_names = [args.baseline_name]
+
+    ag.aggregate_metrics_all(list_of_baselines=baseline_names, save_name=args.save_name)

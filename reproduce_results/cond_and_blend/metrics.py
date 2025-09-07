@@ -95,14 +95,14 @@ class FeatureExtractor:
         
         x_demeaned = x_loudness - np.mean(x_loudness, axis=-1, keepdims=True) # N, T
         y_demeaned = y_loudness - np.mean(y_loudness, axis=-1, keepdims=True) # N, T
-        numerator = np.sum(x_demeaned * y_demeaned, axis=-1)
+        numerator = np.sum(x_demeaned * y_demeaned, axis=-1) # N
         
-        sq_norm_1 = np.sum(x_demeaned**2, axis=-1)
-        sq_norm_2 = np.sum(y_demeaned**2, axis=-1)
+        sq_norm_1 = np.sum(x_demeaned**2, axis=-1)  # N
+        sq_norm_2 = np.sum(y_demeaned**2, axis=-1)  # N
         
-        denom = np.clip(np.sqrt(sq_norm_1 * sq_norm_2), 1e-7, None)
+        denom = np.clip(np.sqrt(sq_norm_1 * sq_norm_2), 1e-7, None)  # N
         
-        coefficients =  numerator / denom
+        coefficients =  numerator / denom  # N
         return np.mean(coefficients)
 
     def compute_avg_mcd(self, x_mfcc, y_mfcc):

@@ -65,7 +65,7 @@ def get_low_highs(mode):
 
 
 def main(low_highs, args):
-    print(f"{np.array(low_highs).shape=}", flush=True)
+    print(f"Before Expanding Low High {np.array(low_highs).shape}", flush=True)
 
     # Load Data
     data = torch.from_numpy(np.load(args.data_path))
@@ -90,10 +90,10 @@ def main(low_highs, args):
     # Make low_highs tensors
     low_highs = [low_highs] * args.num_examples
     lows, highs = torch.tensor(low_highs).unbind(-1)
-    print(f"{torch.tensor(low_highs).shape=}")
+    print(f"Expanded Low Highs {torch.tensor(low_highs).shape}")
     print(f"{lows.shape=}", flush=True)
     print(f"{highs.shape=}", flush=True)
-    print(f"{inputs.shape=}", flush=True)
+    print(f"Inputs before selecting baseline {inputs.shape}", flush=True)
 
     # FMDiffAE Baseline
     if args.baseline_name in ["fmdiffae_unet", "fmdiffae_point"]:
@@ -129,9 +129,9 @@ def main(low_highs, args):
         print(f"{audios.shape=}", flush=True)
 
     if args.baseline_name == "audio":
-        print(f"{inputs.shape=}", flush=True)
+        print(f"Audio Before Resampling: {inputs.shape}", flush=True)
         inputs = torchaudio.functional.resample(inputs, 256, 1).unsqueeze(-2)
-        print(f"{inputs.shape=}", flush=True)
+        print(f"Audio After Resampling {inputs.shape}", flush=True)
         freq_mask = CorrelatedFFTMask(n_fft=inputs.shape[-1])
 
         if args.mode == "cond":
@@ -167,7 +167,7 @@ def main(low_highs, args):
         else:
             raise ValueError
 
-        print(f"specs.shape={specs.shape}", flush=True)
+        print(f"Spectrogram: {specs.shape}", flush=True)
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -190,7 +190,7 @@ def main(low_highs, args):
             if args.mode == "blend":
                 inputs = inputs.flatten(0, 1)
 
-            print(f"{inputs.shape=}")
+            print(f"DAC {inputs.shape=}")
 
             all_zs = torch.cat(
                 [dac_model.encode(x[None].cuda())[0].cpu() for x in inputs], dim=0

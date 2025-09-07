@@ -4,6 +4,7 @@ import librosa
 import librosa.feature as F
 import librosa.onset as O
 
+from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.utils.fad import compute_fad_from_embeddings
 
 
@@ -19,6 +20,7 @@ class FeatureExtractor:
         self.fs = fs
 
         self._pad_amount = (win_length - hop_length) // 2
+        self.freq_mask = CorrelatedFFTMask(n_fft=self.n_fft)
 
     def loudness(self, x):
         x = self._pad(x)
@@ -86,37 +88,70 @@ class FeatureExtractor:
             constant_values=0.0,
         )
 
-    def compute_avg_loudness_correlation(self, x_loudness, y_loudness):
+    def cosine_similarity(self, x, y):
+        """
+        N x T
+        """
+        numerator = np.sum(x * y, axis=-1)
+        norm_1 = np.linalg.norm(x, axis=-1)
+        norm_2 = np.linalg.norm(y, axis=-1)
+        denom = np.clip(norm_1 * norm_2, 1e-7, None)
+        return numerator / denom
+
+    def loudness_correlation(self, x_loudness, y_loudness):
         """
         N x 1 x T
         """
-        x_loudness = x_loudness.squeeze(axis=1) # N, T
-        y_loudness = y_loudness.squeeze(axis=1) # N, T
-        
-        x_demeaned = x_loudness - np.mean(x_loudness, axis=-1, keepdims=True) # N, T
-        y_demeaned = y_loudness - np.mean(y_loudness, axis=-1, keepdims=True) # N, T
-        numerator = np.sum(x_demeaned * y_demeaned, axis=-1) # N
-        
-        sq_norm_1 = np.sum(x_demeaned**2, axis=-1)  # N
-        sq_norm_2 = np.sum(y_demeaned**2, axis=-1)  # N
-        
-        denom = np.clip(np.sqrt(sq_norm_1 * sq_norm_2), 1e-7, None)  # N
-        
-        coefficients =  numerator / denom  # N
-        return np.mean(coefficients)
+        x_loudness = x_loudness.squeeze(axis=1)  # N, T
+        y_loudness = y_loudness.squeeze(axis=1)  # N, T
+        x_demeaned = x_loudness - np.mean(x_loudness, axis=-1, keepdims=True)  # N, T
+        y_demeaned = y_loudness - np.mean(y_loudness, axis=-1, keepdims=True)  # N, T
+        return np.mean(self.cosine_similarity(x_demeaned, y_demeaned))
 
-    def compute_avg_mcd(self, x_mfcc, y_mfcc):
+    def mcd(self, x_mfcc, y_mfcc):
         alpha = (10 * np.sqrt(2)) / np.log(10)
 
         # Sum over channels
         sum_sq = np.sum((x_mfcc - y_mfcc) ** 2, axis=-2)
         return alpha * np.mean(np.sqrt(sum_sq))
 
-    def compute_avg_tonnetz_distance(self, x_tonnetz, y_tonnetz):
+    def beat_spectral_similarity(self, x_oenv, y_oenv):
+        x_oenv = x_oenv.squeeze(axis=1)
+        y_oenv = y_oenv.squeeze(axis=1)
+        x_beat_spec = librosa.autocorrelate(librosa.utils.normalize(x_oenv))
+        y_beat_spec = librosa.autocorrelate(librosa.utils.normalize(y_oenv))
+        return np.mean(self.cosine_similarity(x_beat_spec, y_beat_spec))
+
+    def tonnetz_distance(self, x_tonnetz, y_tonnetz):
         """
         N x 6 x T
         """
         return np.linalg.norm(x_tonnetz - y_tonnetz, axis=-2).mean()
 
     def compute_in_and_out_error(self, x, y, lows, highs, metric):
-        
+        if metric == "loudness":
+            x_feat = self.loudness(x)
+            y_feat = self.loudness(y)
+            metric_fcn = self.loudness_correlation
+        elif metric == "mcd":
+            x_feat = self.mfcc(x)
+            y_feat = self.mfcc(y)
+            metric_fcn = self.mcd
+        elif metric == "onset":
+            x_feat = self.onset_strength(x)
+            y_feat = self.onset_strength(y)
+            metric_fcn = self.beat_spectral_similarity
+        elif metric == "tonnetz":
+            x_feat = self.tonnetz(x)
+            y_feat = self.tonnetz(y)
+            metric_fcn = self.tonnetz_distance
+        else:
+            raise NotImplementedError(f"{metric} not implemented")
+
+        x_in = self.freq_mask(x_feat, lows=lows, highs=highs)
+        y_in = self.freq_mask(y_feat, lows=lows, highs=highs)
+
+        x_out = x_feat - x_in
+        y_out = y_feat - y_in
+
+        return metric_fcn(x_in, y_in), metric_fcn(x_out, y_out)

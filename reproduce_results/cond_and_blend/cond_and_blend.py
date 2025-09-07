@@ -285,6 +285,7 @@ def main(low_highs, args):
         specs = torch.cat(specs, dim=0)
 
         print(f"{specs.shape=}", flush=True)
+        torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)

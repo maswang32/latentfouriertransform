@@ -125,8 +125,8 @@ class FeatureExtractor:
     def beat_spectral_similarity(self, x_oenv, y_oenv):
         x_oenv = x_oenv.squeeze(axis=1)
         y_oenv = y_oenv.squeeze(axis=1)
-        x_beat_spec = librosa.autocorrelate(librosa.utils.normalize(x_oenv, axis=-1))
-        y_beat_spec = librosa.autocorrelate(librosa.utils.normalize(y_oenv, axis=-1))
+        x_beat_spec = librosa.autocorrelate(librosa.util.normalize(x_oenv, axis=-1))
+        y_beat_spec = librosa.autocorrelate(librosa.util.normalize(y_oenv, axis=-1))
         return np.mean(self.cosine_similarity(x_beat_spec, y_beat_spec))
 
     def tonnetz_distance(self, x_tonnetz, y_tonnetz):
@@ -242,6 +242,10 @@ class Aggregator:
                 )
                 results[metric] = {"band1": errs[0], "band2": errs[1]}
 
+            print(
+                f"{mode} \t {baseline_name} \t {low_highs} \t {metric}: {results[metric]}"
+            )
+
         # Get VGGish Embeddings
         baseline_emb = (
             torch.load(os.path.join(load_dir, "vggish_embeddings.pt"))
@@ -251,6 +255,7 @@ class Aggregator:
         results["fad"] = compute_fad_from_embeddings(
             embeddings1=baseline_emb, embeddings2=self.ref_embs
         )
+        print(f"{mode} \t {baseline_name} \t {low_highs} \t FAD: {results['fad']}")
         return results
 
     def aggregate_metrics_all(

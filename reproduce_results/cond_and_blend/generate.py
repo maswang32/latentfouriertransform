@@ -68,6 +68,15 @@ def get_all_low_highs(mode):
     return all_low_highs
 
 
+def get_band_identifier(low_highs, mode):
+    if mode == "cond":
+        return f"{low_highs[0]:.4f}_{low_highs[1]:.4f}"
+    elif mode == "blend":
+        return f"{low_highs[0][0]:.4f}_{low_highs[0][1]:.4f} x {low_highs[1][0]:.4f}_{low_highs[1][1]:.4f}"
+    else:
+        raise ValueError
+
+
 def main(low_highs, args):
     print(f"Before Expanding Low High {np.array(low_highs).shape}", flush=True)
 
@@ -79,14 +88,8 @@ def main(low_highs, args):
         inputs = torch.stack((inputs, inputs_2), dim=1)
 
     # Set up Save Directory
-    if args.mode == "cond":
-        identifier = f"{low_highs[0]:.4f}_{low_highs[1]:.4f}"
-        blend_weights = None
-    elif args.mode == "blend":
-        identifier = f"{low_highs[0][0]:.4f}_{low_highs[0][1]:.4f} x {low_highs[1][0]:.4f}_{low_highs[1][1]:.4f}"
-        blend_weights = [0.5, 0.5]
-    else:
-        raise ValueError
+    identifier = get_band_identifier(low_highs, args.mode)
+    blend_weights = [0.5, 0.5] if args.mode == "blend" else None
 
     save_dir = os.path.join(args.exp_dir, args.mode, args.baseline_name, identifier)
     os.makedirs(save_dir, exist_ok=True)

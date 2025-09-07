@@ -194,7 +194,7 @@ class Aggregator:
                 all_ref_audios[:num_examples],
                 all_ref_audios[num_examples : 2 * num_examples],
             ),
-            dim=1,
+            axis=1,
         )
 
         # Get Embeddings

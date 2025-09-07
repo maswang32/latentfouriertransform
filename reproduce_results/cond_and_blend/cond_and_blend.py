@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import torchaudio
 
+import dac
+
 import argparse
 
 from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
@@ -126,8 +128,6 @@ def main(low_highs, args):
 
         print(f"{audios.shape=}", flush=True)
 
-        torch.save(audios, os.path.join(save_dir, "audios.pt"))
-
     if args.baseline_name == "audio":
         print(f"{inputs.shape=}", flush=True)
         inputs = torchaudio.functional.resample(inputs, 256, 1).unsqueeze(-2)
@@ -151,7 +151,6 @@ def main(low_highs, args):
         audios = torchaudio.functional.resample(out, 1, 256).squeeze(-2)
 
         print(f"{audios.shape=}", flush=True)
-        torch.save(audios, os.path.join(save_dir, "audios.pt"))
 
     if args.baseline_name == "spectrogram":
         freq_mask = CorrelatedFFTMask(n_fft=inputs.shape[-1])
@@ -180,7 +179,55 @@ def main(low_highs, args):
 
         print(f"{audios.shape=}", flush=True)
 
-        torch.save(audios, os.path.join(save_dir, "audios.pt"))
+    if args.baseline_name == "dac":
+        with torch.no_grad():
+            dac_model_path = dac.utils.download(model_type="44khz")
+            dac_model = dac.DAC.load(dac_model_path).cuda()
+            inputs = torchaudio.functional.resample(inputs, 22050, 44100)
+            inputs = inputs.unsqueeze(-2)  # Need Channel Dim
+            inputs = dac_model.preprocess(inputs, 44100)
+
+            if args.mode == "blend":
+                inputs = inputs.flatten(0, 1)
+
+            print(f"{inputs.shape=}")
+
+            all_zs = torch.cat(
+                [dac_model.encode(x[None].cuda())[0].cpu() for x in inputs], dim=0
+            )
+
+            print(f"{all_zs.shape=}")
+
+            freq_mask = CorrelatedFFTMask(n_fft=all_zs.shape[-1])
+
+            if args.mode == "cond":
+                all_zs = freq_mask(all_zs, lows=lows, highs=highs)
+
+            elif args.mode == "blend":
+                print(f"blend, before unflatten {all_zs.shape=}")
+                all_zs = all_zs.unflatten(0, (-1, 2))
+
+                print(f"blend, after unflatten {all_zs.shape=}")
+                all_zs = (
+                    freq_mask(all_zs[:, 0], lows=lows[:, 0], highs=highs[:, 0])
+                    * blend_weights[0]
+                    + freq_mask(all_zs[:, 1], lows=lows[:, 1], highs=highs[:, 1])
+                    * blend_weights[1]
+                )
+            print(f"after fftmask {all_zs.shape=}")
+            all_outs = torch.cat(
+                [dac_model.decode(x[None].cuda()).cpu() for x in all_zs], dim=0
+            )
+            print(f"after fftmask {all_outs.shape=}")
+
+            audios = torchaudio.functional.resample(all_outs, 44100, 22050)
+            print(f"before squeeze {audios.shape=}")
+
+            audios = audios.squeeze(-2)
+            print(f"after squeeze {audios.shape=}")
+
+    # Save Audios
+    torch.save(audios, os.path.join(save_dir, "audios.pt"))
 
     # Compute VGGish Embeddings
     vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)

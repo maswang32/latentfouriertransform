@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 import librosa
 import librosa.feature as F
@@ -155,3 +156,19 @@ class FeatureExtractor:
         y_out = y_feat - y_in
 
         return metric_fcn(x_in, y_in), metric_fcn(x_out, y_out)
+
+    def compute_blended_error(
+        self, x, ref1, ref2, lows1, lows2, highs1, highs2, metric
+    ):
+        err1 = self.compute_in_and_out_error(x, ref1, lows1, highs1, metric)
+        err2 = self.compute_in_and_out_error(x, ref2, lows2, highs2, metric)
+        return err1[0], err2[0]
+
+
+def compute_fad_from_paths(
+    target_emb_path,
+    ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
+):
+    targ_emb = torch.load(target_emb_path).numpy().reshape(-1, 128)
+    ref_emb = np.load(ref_emb_path).reshape(-1, 128)
+    return compute_fad_from_embeddings(embeddings1=targ_emb, embeddings2=ref_emb)

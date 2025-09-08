@@ -379,5 +379,5 @@ if __name__ == "__main__":
     ag.aggregate_metrics_all(
         list_of_modes=list_of_modes,
         list_of_baselines=baseline_names,
-        save_name=None,
+        save_name=args.save_name,
     )

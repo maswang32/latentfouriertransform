@@ -320,11 +320,13 @@ def main(low_highs, baseline_name, args):
             BEATs_model.eval()
             BEATs_model = BEATs_model.cuda()
 
-            batched_audios = audios.split(args.beats_batch_size, dim=0)
+            batched_indices = torch.arange(args.num_examples).split(
+                args.beats_batch_size, dim=0
+            )
+            beats_embeddings = torch.zeros(args.num_examples, 296, 768)
 
-            beats_embeddings = []
-            for batch_audios in batched_audios:
-                batch_audios = batch_audios.cuda()
+            for batch_indices in batched_indices:
+                batch_audios = audios[batch_indices].cuda()
                 batch_audios = torchaudio.functional.resample(
                     batch_audios, 22050, 16000
                 )
@@ -332,8 +334,8 @@ def main(low_highs, baseline_name, args):
                 representations = BEATs_model.extract_features(
                     batch_audios, padding_mask=padding_mask
                 )[0]
-                beats_embeddings.append(representations.cpu())
-            beats_embeddings = torch.cat(beats_embeddings, dim=0)
+                beats_embeddings[batch_indices] = representations.cpu()
+
             print(f"{beats_embeddings.shape=}", flush=True)
             torch.save(beats_embeddings, os.path.join(save_dir, "beats_embeddings.pt"))
 

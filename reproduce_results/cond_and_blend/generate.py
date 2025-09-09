@@ -334,6 +334,7 @@ def main(low_highs, baseline_name, args):
                 )[0]
                 beats_embeddings.append(representations.cpu())
             beats_embeddings = torch.cat(beats_embeddings, dim=0)
+            print(f"{beats_embeddings.shape=}", flush=True)
             torch.save(beats_embeddings, os.path.join(save_dir, "beats_embeddings.pt"))
 
 

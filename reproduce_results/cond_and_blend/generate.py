@@ -301,10 +301,11 @@ def main(low_highs, baseline_name, args):
     # Save Audios
     torch.save(audios, os.path.join(save_dir, "audios.pt"))
 
-    # Compute VGGish Embeddings
-    vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
-    print(f"{vggish_embeddings.shape=}", flush=True)
-    torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
+    if not args.skip_compute_vggish_embeddings:
+        # Compute VGGish Embeddings
+        vggish_embeddings = get_embeddings_vggish(audios, fs=22050, pbar=True)
+        print(f"{vggish_embeddings.shape=}", flush=True)
+        torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
 
 
 if __name__ == "__main__":
@@ -338,6 +339,9 @@ if __name__ == "__main__":
         default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/426000-0.500.ckpt",
     )
     parser.add_argument("--num_examples", type=int, default=1024)
+    parser.add_argument(
+        "--skip_compute_vggish_embeddings", action="store_true", default=False
+    )
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--transform_batch_size", type=int, default=128)
     parser.add_argument("--cfg_scale", type=float, default=2.0)

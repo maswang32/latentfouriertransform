@@ -77,11 +77,20 @@ def get_band_identifier(low_highs, mode):
         raise ValueError
 
 
-def main(low_highs, args):
+def main(low_highs, baseline_name, args):
     print(f"Before Expanding Low High {np.array(low_highs).shape}", flush=True)
 
     # Load Data
-    data = torch.from_numpy(np.load(args.data_path))
+    if baseline_name in ["fmdiffae_point", "fmdiffae_unet", "spectrogram", "guidance"]:
+        data_type = "spec"
+    elif baseline_name in ["audio", "dac"]:
+        data_type = "audio"
+    else:
+        raise ValueError
+
+    data_path = args.spec_data_path if data_type == "spec" else args.audio_data_path
+
+    data = torch.from_numpy(np.load(data_path))
     inputs = data[: args.num_examples]
     if args.mode == "blend":
         inputs_2 = data[args.num_examples : 2 * args.num_examples]
@@ -91,7 +100,9 @@ def main(low_highs, args):
     identifier = get_band_identifier(low_highs, args.mode)
     blend_weights = [0.5, 0.5] if args.mode == "blend" else None
 
-    save_dir = os.path.join(args.exp_dir, args.mode, args.baseline_name, identifier)
+    save_dir = os.path.join(
+        args.exp_base_dir, args.exp_name, args.mode, baseline_name, identifier
+    )
     os.makedirs(save_dir, exist_ok=True)
 
     # Make low_highs tensors
@@ -103,10 +114,15 @@ def main(low_highs, args):
     print(f"Inputs before selecting baseline {inputs.shape}", flush=True)
 
     # FMDiffAE Baseline
-    if args.baseline_name in ["fmdiffae_unet", "fmdiffae_point"]:
+    if baseline_name in ["fmdiffae_point", "fmdiffae_unet"]:
+        ckpt_path = (
+            args.fmdiffae_point_ckpt_path
+            if baseline_name == "fmdiffae_point"
+            else args.fmdiffae_unet_ckpt_path
+        )
         # Load Model
         model = FMDiffAEModule.load_torch_model(
-            ckpt_path=args.ckpt_path,
+            ckpt_path=ckpt_path,
             strict=True,
         ).cuda()
 
@@ -125,17 +141,7 @@ def main(low_highs, args):
 
         print(f"{specs.shape=}", flush=True)
 
-        # Invert to Audio
-        transform = BigVGANTransform(batch_size=args.transform_batch_size)
-        transform.model = transform.model.cuda()
-        audios = transform.batched_inverse_transform(
-            specs,
-            pbar=True,
-        )
-
-        print(f"{audios.shape=}", flush=True)
-
-    if args.baseline_name == "audio":
+    if baseline_name == "audio":
         print(f"Audio Before Resampling: {inputs.shape}", flush=True)
         inputs = torchaudio.functional.resample(inputs, 256, 1).unsqueeze(-2)
         print(f"Audio After Resampling {inputs.shape}", flush=True)
@@ -159,7 +165,7 @@ def main(low_highs, args):
 
         print(f"{audios.shape=}", flush=True)
 
-    if args.baseline_name == "spectrogram":
+    if baseline_name == "spectrogram":
         freq_mask = CorrelatedFFTMask(n_fft=inputs.shape[-1])
 
         if args.mode == "cond":
@@ -177,16 +183,7 @@ def main(low_highs, args):
         print(f"Spectrogram: {specs.shape}", flush=True)
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
-        transform = BigVGANTransform(batch_size=args.transform_batch_size)
-        transform.model = transform.model.cuda()
-        audios = transform.batched_inverse_transform(
-            specs,
-            pbar=True,
-        )
-
-        print(f"{audios.shape=}", flush=True)
-
-    if args.baseline_name == "dac":
+    if baseline_name == "dac":
         with torch.no_grad():
             dac_model_path = dac.utils.download(model_type="44khz")
             dac_model = dac.DAC.load(dac_model_path).cuda()
@@ -233,10 +230,10 @@ def main(low_highs, args):
             audios = audios.squeeze(-2)
             print(f"after squeeze {audios.shape=}")
 
-    if args.baseline_name == "guidance":
+    if baseline_name == "guidance":
         # Load Model
         model = FMDiffAEModule.load_torch_model(
-            ckpt_path=args.ckpt_path,
+            ckpt_path=args.uncond_ckpt_path,
             strict=True,
         ).cuda()
 
@@ -290,6 +287,7 @@ def main(low_highs, args):
         print(f"{specs.shape=}", flush=True)
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
+    if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
         transform.model = transform.model.cuda()
@@ -311,12 +309,34 @@ def main(low_highs, args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("exp_dir")
+    parser.add_argument("exp_name")
     parser.add_argument("baseline_name")
     parser.add_argument("mode")
-    parser.add_argument("low_high_idx", type=int)
-    parser.add_argument("ckpt_path")
-    parser.add_argument("data_path")
+    parser.add_argument("low_high_idx", type=int, default=-1)
+    parser.add_argument(
+        "exp_base_dir",
+        default="/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/outputs",
+    )
+    parser.add_argument(
+        "spec_data_path",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_spec.npy",
+    )
+    parser.add_argument(
+        "audio_data_path",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
+    )
+    parser.add_argument(
+        "--fmdiffae_point_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/point-4gpu-5s-anneal/checkpoints/660000-0.586.ckpt",
+    )
+    parser.add_argument(
+        "--fmdiffae_unet_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/unet-5s-4gpu-anneal-retry-5/checkpoints/658500-0.802.ckpt",
+    )
+    parser.add_argument(
+        "--uncond_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/426000-0.500.ckpt",
+    )
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--transform_batch_size", type=int, default=128)
@@ -325,8 +345,24 @@ if __name__ == "__main__":
     parser.add_argument("--guidance_scale", type=int, default=1e-3)
     args = parser.parse_args()
 
-    if args.low_high_idx == -1:
-        [main(low_highs, args) for low_highs in get_all_low_highs(args.mode)]
+    if args.baseline_name == "all":
+        list_of_baselines = [
+            "audio",
+            "spectrogram",
+            "dac",
+            "guidance",
+            "fmdiffae_point",
+            "fmdiffae_unet",
+        ]
     else:
-        low_highs = get_all_low_highs(args.mode)[args.low_high_idx]
-        main(low_highs, args)
+        list_of_baselines = [args.baseline_name]
+
+    for baseline_name in list_of_baselines:
+        if args.low_high_idx == -1:
+            [
+                main(low_highs, baseline_name, args)
+                for low_highs in get_all_low_highs(args.mode)
+            ]
+        else:
+            low_highs = get_all_low_highs(args.mode)[args.low_high_idx]
+            main(low_highs, baseline_name, args)

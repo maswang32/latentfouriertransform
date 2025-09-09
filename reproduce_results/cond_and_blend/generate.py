@@ -8,6 +8,8 @@ import dac
 
 import argparse
 
+from beats.BEATs import BEATs, BEATsConfig
+
 from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
@@ -307,23 +309,50 @@ def main(low_highs, baseline_name, args):
         print(f"{vggish_embeddings.shape=}", flush=True)
         torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
 
+    if args.compute_BEATs_embeddings:
+        with torch.no_grad():
+            beats_ckpt = torch.load(
+                "/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/diversity/BEATs_iter3_plus_AS2M.pt"
+            )
+            cfg = BEATsConfig(beats_ckpt["cfg"])
+            BEATs_model = BEATs(cfg)
+            BEATs_model.load_state_dict(beats_ckpt["model"])
+            BEATs_model.eval()
+            BEATs_model = BEATs_model.cuda()
+
+            batched_audios = audios.split(args.beats_batch_size, dim=0)
+
+            beats_embeddings = []
+            for batch_audios in batched_audios:
+                batch_audios = batch_audios.cuda()
+                batch_audios = torchaudio.functional.resample(
+                    batch_audios, 22050, 16000
+                )
+                padding_mask = torch.zeros_like(batch_audios).bool()
+                representations = BEATs_model.extract_features(
+                    batch_audios, padding_mask=padding_mask
+                )[0]
+                beats_embeddings.append(representations.cpu())
+            beats_embeddings = torch.cat(beats_embeddings, dim=0)
+            torch.save(beats_embeddings, os.path.join(save_dir, "beats_embeddings.pt"))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("exp_name")
     parser.add_argument("baseline_name")
     parser.add_argument("mode")
-    parser.add_argument("low_high_idx", type=int, default=-1)
+    parser.add_argument("--low_high_idx", type=int, default=-1)
     parser.add_argument(
-        "exp_base_dir",
+        "--exp_base_dir",
         default="/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/outputs",
     )
     parser.add_argument(
-        "spec_data_path",
+        "--spec_data_path",
         default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_spec.npy",
     )
     parser.add_argument(
-        "audio_data_path",
+        "--audio_data_path",
         default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
     )
     parser.add_argument(
@@ -342,8 +371,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_compute_vggish_embeddings", action="store_true", default=False
     )
+    parser.add_argument(
+        "--compute_BEATs_embeddings", action="store_true", default=False
+    )
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--transform_batch_size", type=int, default=128)
+    parser.add_argument("--beats_batch_size", type=int, default=128)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
     parser.add_argument("--num_steps", type=int, default=100)
     parser.add_argument("--guidance_scale", type=int, default=1e-3)

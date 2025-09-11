@@ -289,6 +289,57 @@ def main(low_highs, baseline_name, args):
         print(f"{specs.shape=}", flush=True)
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
+    if baseline_name == "ilvr":
+        # Load Model
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.uncond_ckpt_path,
+            strict=True,
+        ).cuda()
+
+        # Generate
+        batched_indices = torch.arange(inputs.shape[0]).split(args.batch_size, dim=0)
+
+        specs = []
+        for batch_indices in batched_indices:
+            batch_inputs = inputs[batch_indices].cuda()
+            batch_lows = lows[batch_indices]
+            batch_highs = highs[batch_indices]
+
+            if args.mode == "cond":
+                batch_specs = model.generate(
+                    batch_size=args.batch_size,
+                    num_steps=args.num_steps,
+                    pbar=True,
+                    ilvr_mode="cond",
+                    ilvr_lows=lows[batch_indices],
+                    ilvr_highs=highs[batch_indices],
+                    ilvr_reference=batch_inputs,
+                    ilvr_nfft=batch_inputs.shape[-1],
+                ).cpu()
+            elif args.mode == "blend":
+                batch_specs = model.generate(
+                    batch_size=args.batch_size,
+                    num_steps=args.num_steps,
+                    pbar=True,
+                    ilvr_mode="blend",
+                    ilvr_lows=[
+                        batch_lows[:, 0],
+                        batch_lows[:, 1],
+                    ],
+                    ilvr_highs=batch_highs[
+                        batch_highs[:, 0],
+                        batch_highs[:, 1],
+                    ],
+                    ilvr_reference=[batch_inputs[:, 0], batch_inputs[:, 1]],
+                    ilvr_nfft=batch_inputs.shape[-1],
+                ).cpu()
+            specs.append(batch_specs)
+
+        specs = torch.cat(specs, dim=0)
+
+        print(f"{specs.shape=}", flush=True)
+        torch.save(specs, os.path.join(save_dir, "specs.pt"))
+
     if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -391,6 +442,7 @@ if __name__ == "__main__":
             "spectrogram",
             "dac",
             "guidance",
+            "ilvr",
             "fmdiffae_point",
             "fmdiffae_unet",
         ]

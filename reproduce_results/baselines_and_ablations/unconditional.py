@@ -47,9 +47,10 @@ class EDM(nn.Module):
         guidance_fcn=None,
         guidance_scale=1.0,
         guidance_mode="x0",
-        ilvr_reference=None,
-        ilvr_low_highs=None,
         ilvr_mode=None,
+        ilvr_lows=None,
+        ilvr_highs=None,
+        ilvr_reference=None,
         ilvr_nfft=None,
         **guidance_fcn_kwargs,
     ):
@@ -113,8 +114,6 @@ class EDM(nn.Module):
             x_curr = x_next
 
         if ilvr_reference is not None:
-            ilvr_lows, ilvr_highs = ilvr_low_highs.unbind(dim=-1)
-
             if ilvr_mode == "cond":
                 callback_fcn = ilvr_callback
             elif ilvr_mode == "blend":

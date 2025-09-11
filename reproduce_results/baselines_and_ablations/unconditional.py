@@ -47,6 +47,10 @@ class EDM(nn.Module):
         guidance_fcn=None,
         guidance_scale=1.0,
         guidance_mode="x0",
+        ilvr_reference=None,
+        ilvr_low_highs=None,
+        ilvr_mode=None,
+        ilvr_nfft=None,
         **guidance_fcn_kwargs,
     ):
         device = next(self.parameters()).device
@@ -107,6 +111,25 @@ class EDM(nn.Module):
                 x_next = x_curr + d * delta_sigma
 
             x_curr = x_next
+
+        if ilvr_reference is not None:
+            ilvr_lows, ilvr_highs = ilvr_low_highs.unbind(dim=-1)
+
+            if ilvr_mode == "cond":
+                callback_fcn = ilvr_callback
+            elif ilvr_mode == "blend":
+                callback_fcn = dual_ilvr_callback
+            else:
+                raise ValueError
+
+            x_curr = callback_fcn(
+                x_curr,
+                ilvr_lows,
+                ilvr_highs,
+                ilvr_reference,
+                sigma=self._add_dims(sigma_next, batch_size),
+                n_fft=ilvr_nfft,
+            )
 
         return x_curr
 
@@ -289,3 +312,48 @@ def dual_spectral_guidance(
         n_fft=n_fft,
     )
     return loss
+
+
+def ilvr_callback(x, ilvr_lows, ilvr_highs, ilvr_reference, sigma, n_fft=1024):
+    # Add Noise to Reference
+    n = torch.randn_like(ilvr_reference) * sigma
+    noisy_reference = ilvr_reference + n
+
+    # Create FFT Mask
+    F = n_fft // 2 + 1
+    v = torch.linspace(0, 1, F)
+    fft_mask = (v >= ilvr_lows.unsqueeze(1)) & (v <= ilvr_highs.unsqueeze(1))
+    fft_mask = fft_mask.unsqueeze(-2).to(device=x.device, dtype=x.dtype)
+
+    # Bandpass x_t and noisy reference
+    x_bp = torch.fft.irfft(
+        fft_mask * torch.fft.rfft(x.float(), n=n_fft),
+    ).to(x.dtype)[..., : x.shape[-1]]
+
+    noisy_reference_bp = torch.fft.irfft(
+        fft_mask * torch.fft.rfft(noisy_reference.float(), n=n_fft),
+    ).to(x.dtype)[..., : x.shape[-1]]
+
+    return x - x_bp + noisy_reference_bp
+
+
+def dual_ilvr_callback(
+    x, both_ilvr_lows, both_ilvr_highs, references, sigma, n_fft=1024
+):
+    x = ilvr_callback(
+        x,
+        both_ilvr_lows[0],
+        both_ilvr_highs[0],
+        references[0],
+        sigma=sigma,
+        n_fft=n_fft,
+    )
+    x = ilvr_callback(
+        x,
+        both_ilvr_lows[1],
+        both_ilvr_highs[1],
+        references[1],
+        sigma=sigma,
+        n_fft=n_fft,
+    )
+    return x

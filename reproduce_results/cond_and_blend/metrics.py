@@ -291,6 +291,7 @@ class Aggregator:
             "guidance",
             "ilvr",
             "spectrogram",
+            "unconditional",
         ],
         list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
         save_name=None,
@@ -407,6 +408,7 @@ if __name__ == "__main__":
             "guidance",
             "ilvr",
             "spectrogram",
+            "unconditional",
         ]
     else:
         baseline_names = [args.baseline_name]

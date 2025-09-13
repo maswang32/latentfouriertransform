@@ -337,7 +337,7 @@ def main(low_highs, baseline_name, args):
                 ).cpu()
             specs.append(batch_specs)
 
-        if baseline_name == "uncondo":
+        if baseline_name == "unconditional":
             # Load Model
             model = FMDiffAEModule.load_torch_model(
                 ckpt_path=args.uncond_ckpt_path,
@@ -467,6 +467,7 @@ if __name__ == "__main__":
             "fmdiffae_point",
             "fmdiffae_unet",
             "spectrogram",
+            "unconditional",
         ]
     else:
         list_of_baselines = [args.baseline_name]

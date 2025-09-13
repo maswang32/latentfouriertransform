@@ -338,25 +338,29 @@ def main(low_highs, baseline_name, args):
                 ).cpu()
             specs.append(batch_specs)
 
-        if baseline_name == "unconditional":
-            # Load Model
-            model = FMDiffAEModule.load_torch_model(
-                ckpt_path=args.uncond_ckpt_path,
-                strict=True,
-            ).cuda()
+        specs = torch.cat(specs, dim=0)
 
-            # Generate
-            batched_indices = torch.arange(inputs.shape[0]).split(
-                args.batch_size, dim=0
-            )
+        print(f"{specs.shape=}", flush=True)
+        torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
-            specs = []
-            for batch_indices in batched_indices:
-                batch_specs = model.generate(
-                    batch_size=batch_indices.shape[0],
-                    num_steps=args.num_steps,
-                ).cpu()
-                specs.append(batch_specs)
+    if baseline_name == "unconditional":
+        # Load Model
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.uncond_ckpt_path,
+            strict=True,
+        ).cuda()
+
+        # Generate
+        batched_indices = torch.arange(inputs.shape[0]).split(args.batch_size, dim=0)
+        print(batched_indices)
+        specs = []
+        for batch_indices in batched_indices:
+            print(batch_indices.shape)
+            batch_specs = model.generate(
+                batch_size=batch_indices.shape[0],
+                num_steps=args.num_steps,
+            ).cpu()
+            specs.append(batch_specs)
 
         specs = torch.cat(specs, dim=0)
 

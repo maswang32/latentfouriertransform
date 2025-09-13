@@ -89,6 +89,7 @@ def main(low_highs, baseline_name, args):
         "guidance",
         "ilvr",
         "spectrogram",
+        "unconditional",
     ]:
         data_type = "spec"
     elif baseline_name in ["audio", "dac"]:

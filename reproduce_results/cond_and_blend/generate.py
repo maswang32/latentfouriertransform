@@ -83,7 +83,13 @@ def main(low_highs, baseline_name, args):
     print(f"Before Expanding Low High {np.array(low_highs).shape}", flush=True)
 
     # Load Data
-    if baseline_name in ["fmdiffae_point", "fmdiffae_unet", "spectrogram", "guidance"]:
+    if baseline_name in [
+        "fmdiffae_point",
+        "fmdiffae_unet",
+        "guidance",
+        "ilvr",
+        "spectrogram",
+    ]:
         data_type = "spec"
     elif baseline_name in ["audio", "dac"]:
         data_type = "audio"
@@ -252,7 +258,6 @@ def main(low_highs, baseline_name, args):
                 batch_specs = model.generate(
                     batch_size=args.batch_size,
                     num_steps=args.num_steps,
-                    pbar=True,
                     guidance_fcn=spectral_guidance,
                     guidance_scale=args.guidance_scale,
                     guidance_mode="x0",
@@ -267,7 +272,6 @@ def main(low_highs, baseline_name, args):
                 batch_specs = model.generate(
                     batch_size=args.batch_size,
                     num_steps=args.num_steps,
-                    pbar=True,
                     guidance_fcn=dual_spectral_guidance,
                     guidance_scale=args.guidance_scale,
                     guidance_mode="x0",
@@ -309,7 +313,6 @@ def main(low_highs, baseline_name, args):
                 batch_specs = model.generate(
                     batch_size=args.batch_size,
                     num_steps=args.num_steps,
-                    pbar=True,
                     ilvr_mode="cond",
                     ilvr_lows=lows[batch_indices],
                     ilvr_highs=highs[batch_indices],
@@ -320,13 +323,12 @@ def main(low_highs, baseline_name, args):
                 batch_specs = model.generate(
                     batch_size=args.batch_size,
                     num_steps=args.num_steps,
-                    pbar=True,
                     ilvr_mode="blend",
                     ilvr_lows=[
                         batch_lows[:, 0],
                         batch_lows[:, 1],
                     ],
-                    ilvr_highs=batch_highs[
+                    ilvr_highs=[
                         batch_highs[:, 0],
                         batch_highs[:, 1],
                     ],
@@ -439,12 +441,12 @@ if __name__ == "__main__":
     if args.baseline_name == "all":
         list_of_baselines = [
             "audio",
-            "spectrogram",
             "dac",
             "guidance",
             "ilvr",
             "fmdiffae_point",
             "fmdiffae_unet",
+            "spectrogram",
         ]
     else:
         list_of_baselines = [args.baseline_name]

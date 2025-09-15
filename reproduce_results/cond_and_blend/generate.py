@@ -21,18 +21,32 @@ from reproduce_results.baselines_and_ablations.unconditional import (
 
 
 # Compute All Low_Highs
-def get_all_low_highs(mode):
-    vs = [
-        0.0000,
-        0.0078,
-        0.0157,
-        0.0313,
-        0.0626,
-        0.1251,
-        0.2501,
-        0.5001,
-        1.0000,
-    ]
+def get_all_low_highs(mode, scaling="log"):
+    if scaling == "log":
+        vs = [
+            0.0000,
+            0.0078,
+            0.0157,
+            0.0313,
+            0.0626,
+            0.1251,
+            0.2501,
+            0.5001,
+            1.0000,
+        ]
+    elif scaling == "linear":
+        vs = [
+            0.0,
+            0.125,
+            0.25,
+            0.375,
+            0.5,
+            0.625,
+            0.75,
+            0.875,
+            1.0000,
+        ]
+
     low_highs_2 = [
         [vs[0], vs[4]],
         [vs[4], vs[8]],
@@ -423,6 +437,7 @@ if __name__ == "__main__":
     parser.add_argument("exp_name")
     parser.add_argument("baseline_name")
     parser.add_argument("mode")
+    parser.add_argument("--scaling", default="log")
     parser.add_argument("--low_high_idx", type=int, default=-1)
     parser.add_argument(
         "--exp_base_dir",
@@ -481,8 +496,8 @@ if __name__ == "__main__":
         if args.low_high_idx == -1:
             [
                 main(low_highs, baseline_name, args)
-                for low_highs in get_all_low_highs(args.mode)
+                for low_highs in get_all_low_highs(args.mode, args.scaling)
             ]
         else:
-            low_highs = get_all_low_highs(args.mode)[args.low_high_idx]
+            low_highs = get_all_low_highs(args.mode, args.scaling)[args.low_high_idx]
             main(low_highs, baseline_name, args)

@@ -18,6 +18,9 @@ from reproduce_results.baselines_and_ablations.unconditional import (
     spectral_guidance,
     dual_spectral_guidance,
 )
+from reproduce_results.baselines_and_ablations.cross_synthesis import (
+    get_cross_synthesis,
+)
 
 
 # Compute All Low_Highs
@@ -106,7 +109,7 @@ def main(low_highs, baseline_name, args):
         "unconditional",
     ]:
         data_type = "spec"
-    elif baseline_name in ["audio", "dac"]:
+    elif baseline_name in ["audio", "cross", "dac"]:
         data_type = "audio"
     else:
         raise ValueError
@@ -381,6 +384,12 @@ def main(low_highs, baseline_name, args):
         print(f"{specs.shape=}", flush=True)
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
+    if baseline_name == "cross":
+        if args.mode == "blend":
+            audios = get_cross_synthesis(inputs[:, 0], inputs[:, 1])
+        else:
+            raise ValueError("Cross Synthesis is only a baseline for blending")
+
     if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -481,6 +490,7 @@ if __name__ == "__main__":
     if args.baseline_name == "all":
         list_of_baselines = [
             "audio",
+            "cross",
             "dac",
             "guidance",
             "ilvr",

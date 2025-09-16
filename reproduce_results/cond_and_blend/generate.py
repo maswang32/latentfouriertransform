@@ -681,7 +681,7 @@ if __name__ == "__main__":
             "unconditional",
             "vampnet",
         ]
-    elif args.baseline_name == "abl":
+    elif args.baseline_name == "ablations":
         list_of_baselines = [
             "fmdiffae_point",
             "abl_freq_masking",

@@ -19,9 +19,9 @@ from reproduce_results.cond_and_blend.generate import (
 )
 
 
-class FeatureExtractor:
+class AdherenceMetrics:
     """
-    Everything Outputs N, C, T
+    Every Feature Extractor Outputs N, C, T
     """
 
     def __init__(self, n_fft=1024, hop_length=256, win_length=1024, fs=22050):
@@ -180,12 +180,13 @@ class Aggregator:
         self,
         exp_dir,
         num_examples=1024,
-        ref_audios_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
-        ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
+        ref_audios_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
+        ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_vggish_embeddings.npy",
         n_fft=1024,
         hop_length=256,
         win_length=1024,
         fs=22050,
+        scaling="log",
     ):
         self.exp_dir = exp_dir
         self.num_examples = num_examples
@@ -204,20 +205,20 @@ class Aggregator:
         # Get Embeddings
         self.ref_embs = np.load(ref_emb_path)
 
-        self.fe = FeatureExtractor(
+        self.am = AdherenceMetrics(
             n_fft=n_fft, hop_length=hop_length, win_length=win_length, fs=fs
         )
 
         # Get Lows/Highs
-        self.all_low_highs_cond = get_all_low_highs("cond")
-        self.all_low_highs_blend = get_all_low_highs("blend")
+        self.all_low_highs_cond = get_all_low_highs("cond", scaling)
+        self.all_low_highs_blend = get_all_low_highs("blend", scaling)
 
     def aggregate_metrics_from_path(
         self,
         mode,
         baseline_name,
         low_highs,
-        list_of_metrics,
+        list_of_adherence_metrics,
         save_name=None,
         overwrite=True,
     ):
@@ -240,14 +241,21 @@ class Aggregator:
         # Get Audios
         baseline_audios = torch.load(os.path.join(load_dir, "audios.pt")).numpy()
 
-        for metric in list_of_metrics:
+        for adherence_metric in list_of_adherence_metrics:
             if mode == "cond":
-                errs = self.fe.compute_in_and_out_error(
-                    baseline_audios, self.ref_audios_cond, lows, highs, metric
+                errs = self.am.compute_in_and_out_error(
+                    baseline_audios,
+                    self.ref_audios_cond,
+                    lows,
+                    highs,
+                    metric=adherence_metric,
                 )
-                results[metric] = {"in": errs[0].item(), "out": errs[1].item()}
+                results[adherence_metric] = {
+                    "in": errs[0].item(),
+                    "out": errs[1].item(),
+                }
             elif mode == "blend":
-                errs = self.fe.compute_blended_error(
+                errs = self.am.compute_blended_error(
                     x=baseline_audios,
                     ref1=self.ref_audios_blend[:, 0],
                     ref2=self.ref_audios_blend[:, 1],
@@ -255,12 +263,15 @@ class Aggregator:
                     lows2=lows[:, 1],
                     highs1=highs[:, 0],
                     highs2=highs[:, 1],
-                    metric=metric,
+                    metric=adherence_metric,
                 )
-                results[metric] = {"band1": errs[0].item(), "band2": errs[1].item()}
+                results[adherence_metric] = {
+                    "band1": errs[0].item(),
+                    "band2": errs[1].item(),
+                }
 
             print(
-                f"{mode} \t {baseline_name} \t {low_highs} \t {metric}: {results[metric]}"
+                f"{mode} \t {baseline_name} \t {low_highs} \t {adherence_metric}: {results[adherence_metric]}"
             )
 
         # Get VGGish Embeddings
@@ -283,17 +294,8 @@ class Aggregator:
     def aggregate_metrics_all(
         self,
         list_of_modes=["blend", "cond"],
-        list_of_baselines=[
-            "audio",
-            "dac",
-            "fmdiffae_point",
-            "fmdiffae_unet",
-            "guidance",
-            "ilvr",
-            "spectrogram",
-            "unconditional",
-        ],
-        list_of_metrics=["loudness", "mcd", "onset", "tonnetz"],
+        list_of_baselines=[],
+        list_of_adherence_metrics=["loudness", "mcd", "onset", "tonnetz"],
         save_name=None,
         overwrite=True,
     ):
@@ -315,7 +317,7 @@ class Aggregator:
                         mode=mode,
                         baseline_name=baseline_name,
                         low_highs=low_highs,
-                        list_of_metrics=list_of_metrics,
+                        list_of_adherence_metrics=list_of_adherence_metrics,
                         save_name=save_name,
                         overwrite=overwrite,
                     )
@@ -368,11 +370,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
         "--ref_audios_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
     )
     parser.add_argument(
         "--ref_emb_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_embeddings.npy",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_vggish_embeddings.npy",
     )
     parser.add_argument("--n_fft", type=int, default=1024)
     parser.add_argument("--hop_length", type=int, default=256)
@@ -400,21 +402,32 @@ if __name__ == "__main__":
         list_of_modes = [args.mode]
 
     if args.baseline_name == "all":
-        baseline_names = [
+        list_of_baselines = [
             "audio",
+            "cross",
             "dac",
-            "fmdiffae_point",
-            "fmdiffae_unet",
             "guidance",
             "ilvr",
+            "fmdiffae_point",
+            "fmdiffae_unet",
             "spectrogram",
             "unconditional",
+            "vampnet",
+        ]
+    elif args.baseline_name == "ablations":
+        list_of_baselines = [
+            "fmdiffae_point",
+            "abl_freq_masking",
+            "abl_corr",
+            "abl_log_scale",
+            "abl_spec_encoder",
+            "abl_no_encoder",
         ]
     else:
-        baseline_names = [args.baseline_name]
+        list_of_baselines = [args.baseline_name]
 
     ag.aggregate_metrics_all(
         list_of_modes=list_of_modes,
-        list_of_baselines=baseline_names,
+        list_of_baselines=list_of_baselines,
         save_name=args.save_name,
     )

@@ -413,7 +413,6 @@ def main(low_highs, baseline_name, args):
 
         # Generate
         batched_indices = torch.arange(inputs.shape[0]).split(args.batch_size, dim=0)
-        print(batched_indices)
         specs = []
         for batch_indices in batched_indices:
             print(batch_indices.shape)
@@ -452,7 +451,6 @@ def main(low_highs, baseline_name, args):
         batched_indices = torch.arange(inputs.shape[0]).split(
             args.vampnet_batch_size, dim=0
         )
-        print(batched_indices, flush=True)
 
         audios = []
         for batch_indices in batched_indices:

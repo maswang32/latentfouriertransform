@@ -128,9 +128,13 @@ def main(low_highs, baseline_name, args):
         "ilvr",
         "spectrogram",
         "unconditional",
+        "abl_freq_masking",
+        "abl_corr",
+        "abl_log_scale",
+        "abl_spec_encoder",
     ]:
         data_type = "spec"
-    elif baseline_name in ["audio", "cross", "dac", "vampnet"]:
+    elif baseline_name in ["audio", "cross", "dac", "vampnet", "abl_no_encoder"]:
         data_type = "audio"
     else:
         raise ValueError
@@ -161,12 +165,29 @@ def main(low_highs, baseline_name, args):
     print(f"Inputs before selecting baseline {inputs.shape}", flush=True)
 
     # FMDiffAE Baseline
-    if baseline_name in ["fmdiffae_point", "fmdiffae_unet"]:
-        ckpt_path = (
-            args.fmdiffae_point_ckpt_path
-            if baseline_name == "fmdiffae_point"
-            else args.fmdiffae_unet_ckpt_path
-        )
+    if baseline_name in [
+        "fmdiffae_point",
+        "fmdiffae_unet",
+        "abl_freq_masking",
+        "abl_corr",
+        "abl_log_scale",
+        "abl_spec_encoder",
+    ]:
+        if baseline_name == "fmdiffae_point":
+            ckpt_path = args.fmdiffae_point_ckpt_path
+        elif baseline_name == "fmdiffae_unet":
+            ckpt_path = args.fmdiffae_unet_ckpt_path
+        elif baseline_name == "abl_freq_masking":
+            ckpt_path = args.abl_freq_masking_ckpt_path
+        elif baseline_name == "abl_corr":
+            ckpt_path = args.abl_corr_ckpt_path
+        elif baseline_name == "abl_log_scale":
+            ckpt_path = args.abl_log_scale_ckpt_path
+        elif baseline_name == "abl_spec_encoder":
+            ckpt_path = args.abl_spec_encoder_ckpt_path
+        else:
+            raise ValueError
+
         # Load Model
         model = FMDiffAEModule.load_torch_model(
             ckpt_path=ckpt_path,
@@ -499,6 +520,35 @@ def main(low_highs, baseline_name, args):
 
         audios = torch.cat(audios, dim=0)
 
+    if baseline_name == "abl_no_encoder":
+        # Load Model
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.abl_no_encoder_ckpt_path,
+            strict=True,
+        ).cuda()
+
+        # N, 1, T OR N, 2, 1, T
+        zs = model.resampler(inputs).unsqueeze(-2)
+        print(f"{zs.shape=}", flush=True)
+
+        # Generate
+        specs = model.batch_generate(
+            batch_size=args.batch_size,
+            device=next(model.parameters()).device,
+            save_path=os.path.join(save_dir, "specs.pt"),
+            zs=zs,
+            lows=lows,
+            highs=highs,
+            cfg_scale=args.cfg_scale,
+            blend_weights=blend_weights,
+            num_steps=args.num_steps,
+        )
+
+        print(f"{specs.shape=}", flush=True)
+
+        # Output datatype is specs, so we switch this flag
+        data_type = "spec"
+
     if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -583,6 +633,27 @@ if __name__ == "__main__":
         "--uncond_ckpt_path",
         default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/525000-0.398.ckpt",
     )
+    parser.add_argument(
+        "--abl_freq_masking_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_mask/checkpoints/3000-8.068.ckpt",
+    )
+    parser.add_argument(
+        "--abl_corr_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_corr/checkpoints/102000-4.189.ckpt",
+    )
+    parser.add_argument(
+        "--abl_log_scale_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_logscale_retry/checkpoints/270000-1.378.ckpt",
+    )
+    parser.add_argument(
+        "--abl_spec_encoder_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/id-4gpu-5s/checkpoints/312000-0.745.ckpt",
+    )
+    parser.add_argument(
+        "--abl_no_encoder_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/no_encoder_retry_2/checkpoints/102000-0.658.ckpt",
+    )
+
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
         "--skip_compute_vggish_embeddings", action="store_true", default=False
@@ -611,6 +682,15 @@ if __name__ == "__main__":
             "spectrogram",
             "unconditional",
             "vampnet",
+        ]
+    elif args.baseline_name == "abl":
+        list_of_baselines = [
+            "fmdiffae_point",
+            "abl_freq_masking",
+            "abl_corr",
+            "abl_log_scale",
+            "abl_spec_encoder",
+            "abl_no_encoder",
         ]
     else:
         list_of_baselines = [args.baseline_name]

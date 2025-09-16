@@ -16,4 +16,11 @@ setup(
         "bigvgan @ git+https://github.com/maswang32/BigVGAN.git",
         "wandb",
     ],
+    extras_require={
+        "reproduce_results": [
+            "librosa",
+            "descript-audio-codec",
+            "beats @ git+https://github.com/maswang32/BEATs.git",
+        ]
+    },
 )

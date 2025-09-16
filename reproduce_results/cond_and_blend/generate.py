@@ -417,28 +417,41 @@ def main(low_highs, baseline_name, args):
         import vampnet
         import audiotools as at
 
-        interface = vampnet.interface.Interface.default().cuda()
+        codec_path = vampnet.download_codec()
+        coarse_path, c2f_path = vampnet.download_default()
+
+        interface = vampnet.interface.Interface(
+            coarse_ckpt=coarse_path,
+            coarse2fine_ckpt=c2f_path,
+            codec_ckpt=codec_path,
+            wavebeat_ckpt=None,
+            device="cuda",
+        )
 
         batched_indices = torch.arange(inputs.shape[0]).split(
             args.vampnet_batch_size, dim=0
         )
-        print(batched_indices)
+        print(batched_indices, flush=True)
 
         audios = []
         for batch_indices in batched_indices:
-            batch_inputs = inputs[batch_indices].cuda()
+            batch_inputs = inputs[batch_indices].unsqueeze(-2).cuda()
+            print(f"{batch_inputs.shape=}", flush=True)
 
             # Resample
             audio_signal = at.AudioSignal(batch_inputs, sample_rate=22050)
             audio_signal.resample(44100)
-            print(f"{audio_signal.device=}")
+            print(f"{audio_signal.device=}", flush=True)
+            print(f"{audio_signal.shape=}", flush=True)
 
             if args.mode == "cond":
                 low = lows[0]
                 high = highs[0]
 
+                print(f"{interface.device=}", flush=True)
+
                 codes = interface.encode(audio_signal)
-                print(f"{codes.shape=}")
+                print(f"{codes.shape=}", flush=True)
 
                 mask = torch.ones_like(codes)
                 # Unmask condition
@@ -450,14 +463,17 @@ def main(low_highs, baseline_name, args):
                 low2 = lows[0, 1]
                 high2 = highs[0, 1]
 
-                codes = interface.encode(audio_signal[:, 0:1])
+                codes1 = interface.encode(audio_signal[:, 0:1])
                 codes2 = interface.encode(audio_signal[:, 1:2])
 
-                print(f"{codes.shape=}")
-                print(f"{codes2.shape=}")
+                print(f"{codes1.shape=}", flush=True)
+                print(f"{codes2.shape=}", flush=True)
 
                 # Combine Codes Together
+                codes = codes1.clone()
                 codes[:, low2:high2] = codes2[:, low2:high2]
+
+                print(f"{codes.shape=}", flush=True)
 
                 mask = torch.ones_like(codes)
                 mask[:, low1:high1, :] = 0
@@ -473,8 +489,8 @@ def main(low_highs, baseline_name, args):
             )
             output_signal = interface.decode(output_tokens)
             output_signal.resample(22050)
-            audio = output_signal.audio_data.squeeze(1).cpu()
-            print(f"{audio.shape=}")
+            audio = output_signal.audio_data.squeeze(1).cpu()[..., : inputs.shape[-1]]
+            print(f"{audio.shape=}", flush=True)
             audios.append(audio)
 
         audios = torch.cat(audios, dim=0)

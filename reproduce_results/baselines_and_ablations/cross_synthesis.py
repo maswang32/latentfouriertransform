@@ -2,7 +2,11 @@ import torch
 
 
 def get_spectral_envelope(
-    x, cutoff_bin=50, n_fft=1024, hop_length=256, win_length=1024,
+    x,
+    cutoff_bin=50,
+    n_fft=1024,
+    hop_length=256,
+    win_length=1024,
 ):
     spec = torch.log(
         torch.abs(
@@ -28,7 +32,12 @@ def get_spectral_envelope(
 
 
 def get_cross_synthesis(
-    carrier, modulator, cutoff_bin=100, n_fft=1024, hop_length=256, win_length=1024,
+    carrier,
+    modulator,
+    cutoff_bin=100,
+    n_fft=1024,
+    hop_length=256,
+    win_length=1024,
 ):
     carrier_spec = torch.stft(
         carrier,

@@ -565,11 +565,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--spec_data_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_spec.npy",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_spec.npy",
     )
     parser.add_argument(
         "--audio_data_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_audio.npy",
+        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
     )
     parser.add_argument(
         "--fmdiffae_point_ckpt_path",
@@ -581,7 +581,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--uncond_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/426000-0.500.ckpt",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/525000-0.398.ckpt",
     )
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(

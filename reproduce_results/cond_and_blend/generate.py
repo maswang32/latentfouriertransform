@@ -435,8 +435,12 @@ def main(low_highs, baseline_name, args):
 
         audios = []
         for batch_indices in batched_indices:
-            batch_inputs = inputs[batch_indices].unsqueeze(-2).cuda()
+            batch_inputs = inputs[batch_indices].cuda()
             print(f"{batch_inputs.shape=}", flush=True)
+
+            batch_inputs = (
+                batch_inputs.unsqueeze(-2) if args.mode == "cond" else batch_inputs
+            )
 
             # Resample
             audio_signal = at.AudioSignal(batch_inputs, sample_rate=22050)

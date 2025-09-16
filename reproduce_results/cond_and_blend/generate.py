@@ -4,11 +4,7 @@ import numpy as np
 import torch
 import torchaudio
 
-import dac
-
 import argparse
-
-from beats.BEATs import BEATs, BEATsConfig
 
 from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
@@ -49,6 +45,31 @@ def get_all_low_highs(mode, scaling="log"):
             0.875,
             1.0000,
         ]
+    elif scaling == "discrete":
+        low_highs_2 = [
+            [0, 2],
+            [2, 4],
+        ]
+        low_highs_4 = [
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [3, 4],
+        ]
+        if mode == "cond":
+            all_low_highs = low_highs_2 + low_highs_4
+        elif mode == "blend":
+            all_low_highs = [
+                [low_highs_4[0], low_highs_4[1]],
+                [low_highs_4[0], low_highs_4[2]],
+                [low_highs_4[0], low_highs_4[3]],
+                [low_highs_4[1], low_highs_4[2]],
+                [low_highs_4[1], low_highs_4[3]],
+                [low_highs_4[2], low_highs_4[3]],
+            ]
+        return all_low_highs
+    else:
+        raise ValueError
 
     low_highs_2 = [
         [vs[0], vs[4]],
@@ -109,7 +130,7 @@ def main(low_highs, baseline_name, args):
         "unconditional",
     ]:
         data_type = "spec"
-    elif baseline_name in ["audio", "cross", "dac"]:
+    elif baseline_name in ["audio", "cross", "dac", "vampnet"]:
         data_type = "audio"
     else:
         raise ValueError
@@ -210,6 +231,8 @@ def main(low_highs, baseline_name, args):
         torch.save(specs, os.path.join(save_dir, "specs.pt"))
 
     if baseline_name == "dac":
+        import dac
+
         with torch.no_grad():
             dac_model_path = dac.utils.download(model_type="44khz")
             dac_model = dac.DAC.load(dac_model_path).cuda()
@@ -390,6 +413,72 @@ def main(low_highs, baseline_name, args):
         else:
             raise ValueError("Cross Synthesis is only a baseline for blending")
 
+    if baseline_name == "vampnet":
+        import vampnet
+        import audiotools as at
+
+        interface = vampnet.interface.Interface.default().cuda()
+
+        batched_indices = torch.arange(inputs.shape[0]).split(
+            args.vampnet_batch_size, dim=0
+        )
+        print(batched_indices)
+
+        audios = []
+        for batch_indices in batched_indices:
+            batch_inputs = inputs[batch_indices].cuda()
+
+            # Resample
+            audio_signal = at.AudioSignal(batch_inputs, sample_rate=22050)
+            audio_signal.resample(44100)
+            print(f"{audio_signal.device=}")
+
+            if args.mode == "cond":
+                low = lows[0]
+                high = highs[0]
+
+                codes = interface.encode(audio_signal)
+                print(f"{codes.shape=}")
+
+                mask = torch.ones_like(codes)
+                # Unmask condition
+                mask[:, low:high, :] = 0
+            elif args.mode == "blend":
+                low1 = lows[0, 0]
+                high1 = highs[0, 0]
+
+                low2 = lows[0, 1]
+                high2 = highs[0, 1]
+
+                codes = interface.encode(audio_signal[:, 0:1])
+                codes2 = interface.encode(audio_signal[:, 1:2])
+
+                print(f"{codes.shape=}")
+                print(f"{codes2.shape=}")
+
+                # Combine Codes Together
+                codes[:, low2:high2] = codes2[:, low2:high2]
+
+                mask = torch.ones_like(codes)
+                mask[:, low1:high1, :] = 0
+                mask[:, low2:high2, :] = 0
+
+            output_tokens = interface.vamp(
+                codes,
+                mask,
+                batch_size=codes.shape[0],
+                return_mask=False,
+                temperature=1.0,
+                typical_filtering=True,
+            )
+            output_signal = interface.decode(output_tokens)
+            output_signal.resample(22050)
+            audio = output_signal.audio_data.squeeze(1).cpu()
+            print(f"{audio.shape=}")
+            audios.append(audio)
+
+        audios = torch.cat(audios, dim=0)
+
     if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -411,6 +500,8 @@ def main(low_highs, baseline_name, args):
         torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
 
     if args.compute_BEATs_embeddings:
+        from beats.BEATs import BEATs, BEATsConfig
+
         with torch.no_grad():
             beats_ckpt = torch.load(
                 "/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/diversity/BEATs_iter3_plus_AS2M.pt"
@@ -482,6 +573,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--transform_batch_size", type=int, default=128)
     parser.add_argument("--beats_batch_size", type=int, default=128)
+    parser.add_argument("--vampnet_batch_size", type=int, default=128)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
     parser.add_argument("--num_steps", type=int, default=100)
     parser.add_argument("--guidance_scale", type=int, default=1e-3)
@@ -498,6 +590,7 @@ if __name__ == "__main__":
             "fmdiffae_unet",
             "spectrogram",
             "unconditional",
+            "vampnet",
         ]
     else:
         list_of_baselines = [args.baseline_name]

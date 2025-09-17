@@ -186,7 +186,6 @@ class Aggregator:
         hop_length=256,
         win_length=1024,
         fs=22050,
-        scaling="log",
     ):
         self.exp_dir = exp_dir
         self.num_examples = num_examples
@@ -208,10 +207,6 @@ class Aggregator:
         self.am = AdherenceMetrics(
             n_fft=n_fft, hop_length=hop_length, win_length=win_length, fs=fs
         )
-
-        # Get Lows/Highs
-        self.all_low_highs_cond = get_all_low_highs("cond", scaling)
-        self.all_low_highs_blend = get_all_low_highs("blend", scaling)
 
     def aggregate_metrics_from_path(
         self,
@@ -310,11 +305,9 @@ class Aggregator:
             for baseline_name in list_of_baselines:
                 all_results[mode][baseline_name] = {}
 
-                for low_highs in (
-                    self.all_low_highs_cond
-                    if mode == "cond"
-                    else self.all_low_highs_blend
-                ):
+                scaling = "discrete" if baseline_name == "vampnet" else "log"
+
+                for low_highs in get_all_low_highs(mode, scaling):
                     all_results[mode][baseline_name][
                         get_band_identifier(low_highs, mode=mode)
                     ] = self.aggregate_metrics_from_path(
@@ -371,7 +364,6 @@ if __name__ == "__main__":
     parser.add_argument("save_name")
     parser.add_argument("mode")
     parser.add_argument("baseline_name")
-    parser.add_argument("--scaling", default="log")
     parser.add_argument("--skip_adherence_metrics", action="store_true", default=False)
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(

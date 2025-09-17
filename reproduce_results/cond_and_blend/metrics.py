@@ -367,6 +367,7 @@ if __name__ == "__main__":
     parser.add_argument("save_name")
     parser.add_argument("mode")
     parser.add_argument("baseline_name")
+    parser.add_argument("--skip_adherence_metrics", action="store_true", default=False)
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
         "--ref_audios_path",
@@ -426,8 +427,14 @@ if __name__ == "__main__":
     else:
         list_of_baselines = [args.baseline_name]
 
+    if args.skip_adherence_metrics:
+        list_of_adherence_metrics = []
+    else:
+        list_of_adherence_metrics = ["loudness", "mcd", "onset", "tonnetz"]
+
     ag.aggregate_metrics_all(
         list_of_modes=list_of_modes,
         list_of_baselines=list_of_baselines,
+        list_of_adherence_metrics=list_of_adherence_metrics,
         save_name=args.save_name,
     )

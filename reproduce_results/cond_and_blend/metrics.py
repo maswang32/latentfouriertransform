@@ -371,6 +371,7 @@ if __name__ == "__main__":
     parser.add_argument("save_name")
     parser.add_argument("mode")
     parser.add_argument("baseline_name")
+    parser.add_argument("--scaling", default="log")
     parser.add_argument("--skip_adherence_metrics", action="store_true", default=False)
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
@@ -396,6 +397,7 @@ if __name__ == "__main__":
         hop_length=args.hop_length,
         win_length=args.win_length,
         fs=args.fs,
+        scaling=args.scaling,
     )
 
     if args.mode == "all":

@@ -526,7 +526,7 @@ def main(low_highs, baseline_name, args):
         ).cuda()
 
         # N, 1, T OR N, 2, 1, T
-        zs = model.resampler(inputs).unsqueeze(-2)
+        zs = model.resampler(inputs.cuda()).unsqueeze(-2)
         print(f"{zs.shape=}", flush=True)
 
         # Generate

@@ -293,7 +293,18 @@ class Aggregator:
     def aggregate_metrics_all(
         self,
         list_of_modes=["blend", "cond"],
-        list_of_baselines=[],
+        list_of_baselines=[
+            "audio",
+            "cross",
+            "dac",
+            "guidance",
+            "ilvr",
+            "fmdiffae_point",
+            "fmdiffae_unet",
+            "spectrogram",
+            "unconditional",
+            "vampnet",
+        ],
         list_of_adherence_metrics=["loudness", "mcd", "onset", "tonnetz"],
         save_name=None,
         overwrite=True,
@@ -303,6 +314,8 @@ class Aggregator:
             all_results[mode] = {}
 
             for baseline_name in list_of_baselines:
+                if mode == "cond" and baseline_name == "cross":
+                    continue
                 all_results[mode][baseline_name] = {}
 
                 scaling = "discrete" if baseline_name == "vampnet" else "log"

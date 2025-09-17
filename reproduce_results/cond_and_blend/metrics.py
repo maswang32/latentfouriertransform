@@ -402,7 +402,6 @@ if __name__ == "__main__":
         hop_length=args.hop_length,
         win_length=args.win_length,
         fs=args.fs,
-        scaling=args.scaling,
     )
 
     if args.mode == "all":

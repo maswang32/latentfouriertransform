@@ -271,7 +271,8 @@ class Aggregator:
                 }
 
             print(
-                f"{mode} \t {baseline_name} \t {low_highs} \t {adherence_metric}: {results[adherence_metric]}"
+                f"{mode} \t {baseline_name} \t {low_highs} \t {adherence_metric}: {results[adherence_metric]}",
+                flush=True,
             )
 
         # Get VGGish Embeddings
@@ -283,7 +284,10 @@ class Aggregator:
         results["fad"] = compute_fad_from_embeddings(
             embeddings1=baseline_emb, embeddings2=self.ref_embs
         )
-        print(f"{mode} \t {baseline_name} \t {low_highs} \t FAD: {results['fad']}")
+        print(
+            f"{mode} \t {baseline_name} \t {low_highs} \t FAD: {results['fad']}",
+            flush=True,
+        )
 
         if save_name is not None:
             with open(json_path, "w") as f:

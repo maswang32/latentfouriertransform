@@ -21,6 +21,11 @@ from reproduce_results.baselines_and_ablations.cross_synthesis import (
 
 # Compute All Low_Highs
 def get_all_low_highs(mode, scaling="log"):
+    if scaling == "user":
+        return [[[0, 1 / 43], [12 / 43, 1]]]
+    elif scaling == "discrete_user":
+        return [[[0, 1], [3, 4]]]
+
     if scaling == "log":
         vs = [
             0.0000,

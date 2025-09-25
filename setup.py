@@ -21,6 +21,8 @@ setup(
             "librosa",
             "descript-audio-codec",
             "beats @ git+https://github.com/maswang32/BEATs.git",
+            "mir_eval",
+            "essentia",
         ]
     },
 )

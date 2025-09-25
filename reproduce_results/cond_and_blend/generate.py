@@ -73,6 +73,27 @@ def get_all_low_highs(mode, scaling="log"):
                 [low_highs_4[2], low_highs_4[3]],
             ]
         return all_low_highs
+    elif scaling == "discrete_sweep":
+        if mode == "cond":
+            all_low_highs = [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 4],
+                [4, 5],
+                [5, 6],
+                [6, 7],
+                [7, 8],
+                [8, 9],
+                [9, 10],
+                [10, 11],
+                [11, 12],
+                [12, 13],
+                [13, 14],
+            ]
+        elif mode == "blend":
+            raise NotImplementedError
+        return all_low_highs
     else:
         raise ValueError
 

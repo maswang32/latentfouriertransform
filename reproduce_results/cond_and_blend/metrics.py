@@ -360,8 +360,13 @@ def compute_beat_embeddings_msd(beat_embeddings, num_trials, num_songs):
     return total / num_songs
 
 
-def compute_diversity_metric(baseline_dir, num_trials, num_songs):
-    paths = glob(os.path.join(baseline_dir, "*", "beats_embeddings.pt"))
+def compute_diversity_metric(
+    baseline_dir,
+    num_trials,
+    num_songs,
+    file_name="beats_embeddings.pt",
+):
+    paths = glob(os.path.join(baseline_dir, "*", file_name))
     num_paths = len(paths)
 
     total = 0

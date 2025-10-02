@@ -7,6 +7,7 @@ import scipy
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.colors as mcolors
 
 import subprocess
 
@@ -15,20 +16,59 @@ from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
 from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
 
 
-LATENT_DEFAULTS = {
-    "x_label": "Latent Frequency (Hz)",
-    "x_eps": 0.5,
-    "x_lim": [0, 22050 / 512],
-    "x_num_pts": 513,
-    "x_ticks": [0, 1, 2, 5, 10, 20, 40],
-    "x_tick_labels": [0, 1, 2, 5, 10, 20, 40],
-    "y_label": "Weighting",
-    "y_lim": (0, 1.1),
-    "y_ticks": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-    "y_tick_labels": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-    "band_transition_width": 0.1,
+HERO_STYLE = {
+    # Font Sizes
+    "label_font_size" : 36,
+    "tick_font_size" : 30,
+    "legend_font_size" : 30,
+    "title_font_size" : 40,
+    
+    # Resolution/Quality
+    "figsize" : (16, 9),
+    "dpi" : 300,
+    "fps" : 30,
+    "bitrate" : 1800,
+
+
+    # Colors and Alphas
+    "face_color" : "black",
+    "spine_color" : "#333",
+    "label_color" : "#edebeb",
+    "tick_color" : "#999",
+    "grid_color" : "#FFF",
+    "grid_alpha" : 0.1,
+    "legend_face_color" : "black",
+    "legend_edge_color" : "#444",
+    "legend_label_color" : "#FFF",
+    "legend_frame_alpha" : 0.9,
+
+    # Other Settings
+    "font_params" : {
+        "font.family": "cmb10",
+        "font.weight": "bold",
+    },
+    "legend_loc" : "upper right",
+    "title_y" : 0.96,
+    "title_flash_duration" : 0.5,
 }
 
+LATENT_AXES = {
+    # Labels
+    "x_label": "Latent Frequency (Hz)",
+    "y_label": "",
+
+    # Limits/Scaling
+    "x_lim": (0, (22050 / 4096)),
+    "x_num_pts": 513,
+    "x_eps": 2,
+    "y_lim": (0, 1.1),
+
+    # Ticks
+    "x_ticks": [0, 1, 2, 5, 10],
+    "x_tick_labels": [0, 1, 2, 5, 10],
+    "y_ticks": [0.0, 1.0],
+    "y_tick_labels": [0.0, 1.0],
+}
 
 class Track:
     def __init__(
@@ -43,6 +83,7 @@ class Track:
         linewidth: float = 3,
         start_time: float = 0.0,
         amp_curves: Optional[np.ndarray] = None,  # N, F
+        band_transition_width = 0.005,
     ):
         self.name = name
         self.low_highs = low_highs
@@ -61,98 +102,57 @@ class Track:
         self.start_time = start_time
 
         self.amp_curves = amp_curves
+        self.band_transition_width = band_transition_width
 
 
-class BandpassAnimation:
-    FONT_PARAMS = {
-        "font.family": "cmb10",
-        "font.weight": "bold",
-    }
-    DPI = 300
-    FPS = 30
-    BITRATE = 1800
-
-    FACE_COLOR = "black"
-    SPINE_COLOR = "#333"
-    LABEL_FONT_SIZE = 24
-    LABEL_COLOR = "#FFF"
-    TICK_FONT_SIZE = 18
-    TICK_COLOR = "#888"
-
-    GRID_COLOR = "#FFF"
-    GRID_ALPHA = 0.1
-
-    LEGEND_LOC = "upper right"
-    LEGEND_FRAME_ALPHA = 0.9
-    LEGEND_FACE_COLOR = "black"
-    LEGEND_EDGE_COLOR = "#444"
-    LEGEND_FONT_SIZE = 20
-    LEGEND_LABEL_COLOR = "#FFF"
-
+class BandpassAnimation:    
     def __init__(
         self,
         tracks: List[Track],
-        x_label,
-        x_eps,
-        x_lim,
-        x_num_pts,
-        x_ticks,
-        x_tick_labels,
-        y_label,
-        y_lim,
-        y_ticks,
-        y_tick_labels,
-        band_transition_width=0.3,
-        figsize=(16, 9),
+        titles=None,
+        style={},
+        axes={}
     ):
         self.tracks = tracks
+        self.titles = titles
+        self.style = style
+        self.axes = axes
 
-        self.x_label = x_label
-        self.x_eps = x_eps
-        self.x_display = np.linspace(
-            self.to_display(x_lim[0]),
-            self.to_display(x_lim[1]),
-            x_num_pts,
+        self.axes["x_display"] = np.linspace(
+            self.to_display(axes["x_lim"][0]),
+            self.to_display(axes["x_lim"][1]),
+            axes["x_num_pts"],
         )
-        self.x_values = self.to_values(self.x_display)
-        self.x_ticks = x_ticks
-        self.x_tick_labels = x_tick_labels
-
-        self.y_label = y_label
-        self.y_lim = y_lim
-        self.y_ticks = y_ticks
-        self.y_tick_labels = y_tick_labels
-
-        self.band_transition_width = band_transition_width
-        self.figsize = figsize
+        self.axes["x_values"] = self.to_values(self.axes["x_display"])        
 
     def setup_plot(self):
-        with matplotlib.rc_context(self.FONT_PARAMS):
+        with matplotlib.rc_context(self.style["font_params"]):
             self.all_elements = {}
-            self.fig = plt.figure(figsize=self.figsize, facecolor=self.FACE_COLOR)
-            self.ax = self.fig.add_subplot(111, facecolor=self.FACE_COLOR)
+            self.fig = plt.figure(figsize=self.style["figsize"], facecolor=self.style["face_color"], constrained_layout=True)
+            self.ax = self.fig.add_subplot(111, facecolor=self.style["face_color"])
             self.ax.set_xlabel(
-                self.x_label, color=self.LABEL_COLOR, fontsize=self.LABEL_FONT_SIZE
+                self.axes["x_label"], color=self.style["label_color"], fontsize=self.style["label_font_size"]
             )
             self.ax.set_ylabel(
-                self.y_label, color=self.LABEL_COLOR, fontsize=self.LABEL_FONT_SIZE
+                self.axes["y_label"], color=self.style["label_color"], fontsize=self.style["label_font_size"]
             )
-            self.ax.spines["bottom"].set_color(self.SPINE_COLOR)
-            self.ax.spines["left"].set_color(self.SPINE_COLOR)
+            self.ax.spines["bottom"].set_color(self.style["spine_color"])
+            self.ax.spines["left"].set_color(self.style["spine_color"])
             self.ax.spines["top"].set_visible(False)
             self.ax.spines["right"].set_visible(False)
-            self.ax.tick_params(colors=self.TICK_COLOR)
-            self.ax.set_xlim(self.x_display[0], self.x_display[-1])
-            self.ax.set_ylim(self.y_lim)
+            self.ax.tick_params(colors=self.style["tick_color"])
+            self.ax.set_xlim(self.axes["x_display"][0], self.axes["x_display"][-1])
+            self.ax.set_ylim(self.axes["y_lim"])
 
-            display_ticks = self.to_display(np.array(self.x_ticks))
+            display_ticks = self.to_display(np.array(self.axes["x_ticks"]))
             self.ax.set_xticks(display_ticks)
-            self.ax.set_xticklabels(self.x_tick_labels, fontsize=self.TICK_FONT_SIZE)
+            self.ax.set_xticklabels(self.axes["x_tick_labels"], fontsize=self.axes["tick_font_size"])
             self.ax.set_yticks(self.y_ticks)
-            self.ax.set_yticklabels(self.y_tick_labels, fontsize=self.TICK_FONT_SIZE)
+            self.ax.set_yticklabels(self.axes["y_tick_labels"], fontsize=self.axes["tick_font_size"])
             self.ax.grid(
-                True, which="both", alpha=self.GRID_ALPHA, color=self.GRID_COLOR
+                True, which="both", alpha=self.style["grid_alpha"], color=self.style["grid_color"]
             )
+            self.ax.tick_params(length=0)
 
             for i, track in enumerate(self.tracks):
                 track_elements = {}
@@ -191,13 +191,23 @@ class BandpassAnimation:
 
             if len(self.tracks) >= 1:
                 self.ax.legend(
-                    loc=self.LEGEND_LOC,
-                    framealpha=self.LEGEND_FRAME_ALPHA,
-                    facecolor=self.LEGEND_FACE_COLOR,
-                    edgecolor=self.LEGEND_EDGE_COLOR,
-                    fontsize=self.LEGEND_FONT_SIZE,
-                    labelcolor=self.LEGEND_LABEL_COLOR,
+                    loc=self.style["legend_loc"],
+                    framealpha=self.style["legend_frame_alpha"],
+                    facecolor=self.style["legend_face_color"],
+                    edgecolor=self.style["legend_edge_color"],
+                    fontsize=self.style["legend_font_size"],
+                    labelcolor=self.style["legend_label_color"],
                 )
+            
+            first_title = None  if self.titles is None else self.titles[0]            
+
+            self.title_text = self.fig.suptitle(
+                first_title,
+                fontsize=self.style["title_font_size"],
+                color = self.style["label_color"],
+                weight='bold',
+                y=self.style["title_y"],
+            )
         plt.tight_layout()
 
     def to_display(self, x):
@@ -212,15 +222,16 @@ class BandpassAnimation:
         # Cubic Interpolation
         return t * t * (3.0 - 2.0 * t)
 
-    def calculate_curve(self, low, high, floor, ceiling):
+    def calculate_curve(self, low, high, floor, ceiling, band_transition_width):
         if high - low < 1e-6:
             return np.full_like(self.x_values, floor)
 
         low_d = self.to_display(low)
         high_d = self.to_display(high)
-
-        low_trans_start = low_d - self.band_transition_width
-        high_trans_end = high_d + self.band_transition_width
+        
+        low_trans_start = low_d - band_transition_width
+        high_trans_end = high_d + band_transition_width
+        
         step_up = self.smooth_step(low_trans_start, low_d, self.x_display)
         step_down = self.smooth_step(high_d, high_trans_end, self.x_display)
         weights = step_up * (1.0 - step_down)
@@ -257,6 +268,8 @@ class BandpassAnimation:
                 amp = prev_amp
         else:
             amp = None
+            
+        current_title = self.titles[band_idx] if self.titles is not None else None
 
         # Manage Transitions between low/highs, and ceilings
         if time_in_cycle < track.transition_duration and band_idx > 0:
@@ -274,9 +287,9 @@ class BandpassAnimation:
             interpolated_floor_ceiling = (
                 prev_floor_ceiling + (curr_floor_ceiling - prev_floor_ceiling) * t
             )
-            return interpolated_band, interpolated_floor_ceiling, amp
+            return interpolated_band, interpolated_floor_ceiling, amp, current_title
         else:
-            return track.low_highs[band_idx], track.floor_ceilings[band_idx], amp
+            return track.low_highs[band_idx], track.floor_ceilings[band_idx], amp, current_title
 
     def update(self, frame):
         curr_time = frame / self.FPS
@@ -284,10 +297,10 @@ class BandpassAnimation:
 
         for track in self.tracks:
             track_elements = self.all_elements[track.name]
-            (low, high), (floor, ceiling), amp = self.get_track_state_at_time(
+            (low, high), (floor, ceiling), amp, current_title = self.get_track_state_at_time(
                 track, curr_time
             )
-            curve = self.calculate_curve(low, high, floor, ceiling)
+            curve = self.calculate_curve(low, high, floor, ceiling, track.band_transition_width)
 
             # Update
             track_elements["line"].set_data(self.x_display, curve)
@@ -313,12 +326,35 @@ class BandpassAnimation:
                 )
                 track_elements["fill"] = new_fill
                 artists.append(new_fill)
+            
+        if current_title is not None:
+            track_time = curr_time - self.tracks[0].start_time
+            time_in_cycle = track_time % self.tracks[0].duration
+            
+            if time_in_cycle < self.style["title_flash_duration"]:
+                t = time_in_cycle / self.style["title_flash_duration"]
+                ease_t = self.smooth_step(0, 1, t)
+                scale = 1.0 + 0.15 * np.sin(ease_t * np.pi)
+                self.title_text.set_fontsize(self.style["title_font_size"] * scale)
+                
+                hue = 0.480555 - 0.3 * np.sin(t * np.pi) + 0.15
+                saturation = 0.7 * np.sin(ease_t * np.pi)
+                color = self._hsv_to_hex(hue, saturation=saturation, value=1.0)
+                self.title_text.set_color(color)
+            else:
+                self.title_text.set_fontsize(self.style["title_font_size"])
+                self.title_text.set_color(self.style["label_color"])
+                      
+            self.title_text.set_text(current_title)
 
         return artists
-
+    def _hsv_to_hex(self, hue, saturation=1.0, value=1.0):
+        rgb = mcolors.hsv_to_rgb([hue, saturation, value])
+        return mcolors.to_hex(rgb)
+        
     def animate(self, duration, save_path=None):
         self.setup_plot()
-        total_frames = int(duration * self.FPS)
+        total_frames = int(duration * self.style["fps"])
 
         anim = animation.FuncAnimation(
             self.fig,
@@ -330,7 +366,7 @@ class BandpassAnimation:
 
         if save_path:
             Writer = animation.writers["ffmpeg"]
-            writer = Writer(fps=self.FPS, bitrate=self.BITRATE)
+            writer = Writer(fps=self.style["fps"], bitrate=self.style["bitrate"])
             anim.save(save_path, writer=writer)
             print(f"Animation saved to {save_path}")
         else:
@@ -559,9 +595,9 @@ def mux(video_path, audio_path, out_path):
         "-preset",
         "veryfast",
         "-c:a",
-        "libmp3lame",
+        "aac",
         "-b:a",
-        "160k",
+        "256k",
         "-shortest",
         "-movflags",
         "+faststart",

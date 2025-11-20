@@ -150,6 +150,7 @@ def main(low_highs, baseline_name, args):
     if baseline_name in [
         "fmdiffae_point",
         "fmdiffae_unet",
+        "fmdiffae_bandpass",
         "guidance",
         "ilvr",
         "spectrogram",
@@ -158,9 +159,10 @@ def main(low_highs, baseline_name, args):
         "abl_corr",
         "abl_log_scale",
         "abl_spec_encoder",
+        "abl_dft",
     ]:
         data_type = "spec"
-    elif baseline_name in ["audio", "cross", "dac", "vampnet", "abl_no_encoder"]:
+    elif baseline_name in ["audio", "cross", "dac", "vampnet", "abl_no_encoder", "dac_frontend"]:
         data_type = "audio"
     else:
         raise ValueError
@@ -194,16 +196,20 @@ def main(low_highs, baseline_name, args):
     if baseline_name in [
         "fmdiffae_point",
         "fmdiffae_unet",
+        "fmdiffae_bandpass",
         "abl_freq_masking",
         "abl_corr",
         "abl_log_scale",
         "abl_spec_encoder",
+        "abl_dft",
     ]:
         if baseline_name == "fmdiffae_point":
             ckpt_path = args.fmdiffae_point_ckpt_path
         elif baseline_name == "fmdiffae_unet":
             ckpt_path = args.fmdiffae_unet_ckpt_path
-        elif baseline_name == "abl_freq_masking":
+        elif baseline_name == "fmdiffae_bandpass":
+            ckpt_path = args.fmdiffae_bandpass_ckpt_path
+        elif baseline_name in ["abl_freq_masking", "abl_dft"]:
             ckpt_path = args.abl_freq_masking_ckpt_path
         elif baseline_name == "abl_corr":
             ckpt_path = args.abl_corr_ckpt_path
@@ -219,15 +225,17 @@ def main(low_highs, baseline_name, args):
             ckpt_path=ckpt_path,
             strict=True,
         ).cuda()
-
+        
+        no_dft = baseline_name == "abl_dft"
+        
         # Generate
         specs = model.batch_generate(
             batch_size=args.batch_size,
             device=next(model.parameters()).device,
             save_path=os.path.join(save_dir, "specs.pt"),
             inputs=inputs,
-            lows=lows,
-            highs=highs,
+            lows=None if no_dft else lows,
+            highs=None if no_dft else highs,
             cfg_scale=args.cfg_scale,
             blend_weights=blend_weights,
             num_steps=args.num_steps,
@@ -573,6 +581,45 @@ def main(low_highs, baseline_name, args):
         # Output datatype is specs, so we switch this flag
         data_type = "spec"
 
+    if baseline_name == "dac_frontend":
+        # Load Model
+        model = FMDiffAEModule.load_torch_model(
+            ckpt_path=args.dac_frontend_ckpt_path,
+            strict=True,
+        ).cuda()
+        
+        # N, T OR N, 2, T
+        print(f"{inputs.shape=}", flush=True)
+        if args.mode == "cond":
+            zs = model.get_zs(inputs.cuda())
+        elif args.model == "blend":
+            z1 = model.get_zs(inputs[:, 0].cuda())
+            z2 = model.get_zs(inputs[:, 1].cuda())
+            zs = torch.stack((z1, z2), dim=1)
+
+        print(f"{zs.shape=}", flush=True)
+
+        # Generate
+        specs = model.batch_generate(
+            batch_size=args.batch_size,
+            device=next(model.parameters()).device,
+            save_path=os.path.join(save_dir, "specs.pt"),
+            zs=zs,
+            lows=lows,
+            highs=highs,
+            cfg_scale=args.cfg_scale,
+            blend_weights=blend_weights,
+            num_steps=args.num_steps,
+        )
+
+        print(f"{specs.shape=}", flush=True)
+
+        # Output datatype is specs, so we switch this flag
+        data_type = "spec"
+
+        
+        
+
     if data_type == "spec":
         # Invert to Audio
         transform = BigVGANTransform(batch_size=args.transform_batch_size)
@@ -677,6 +724,14 @@ if __name__ == "__main__":
         "--abl_no_encoder_ckpt_path",
         default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/no_encoder_retry_2/checkpoints/102000-0.658.ckpt",
     )
+    parser.add_argument(
+        "--fmdiffae_bandpass_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/bandpass3compiled_retry_2/checkpoints/21000-3.041.ckpt",
+    )
+    parser.add_argument(
+        "--dac_frontend_ckpt_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/dac_encoder3_128_3/checkpoints/75000-0.938.ckpt",
+    )
 
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
@@ -716,6 +771,8 @@ if __name__ == "__main__":
             "abl_spec_encoder",
             "abl_no_encoder",
         ]
+    elif args.baseline_name == "rebuttals":
+        list_of_baselines = ["fmdiffae_bandpass", "dac_frontend"]
     else:
         list_of_baselines = [args.baseline_name]
 

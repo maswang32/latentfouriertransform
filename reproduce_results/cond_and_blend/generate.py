@@ -344,7 +344,7 @@ def main(low_highs, baseline_name, args):
 
     if baseline_name == "rave":
         with torch.no_grad():
-            rave = torch.jit.load(args.rave_path)
+            rave = torch.jit.load(args.rave_path).cuda()
             inputs = torchaudio.functional.resample(inputs, 22050, 44100)
             inputs = inputs.unsqueeze(-2)  # Need Channel Dim
 
@@ -360,7 +360,7 @@ def main(low_highs, baseline_name, args):
             print(f"RAVE {all_zs.shape=}")
             
             # Resample Latents to Match Our Frame Rate
-            all_zs = torchaudio.functional.resample(inputs, 128, 512)
+            all_zs = torchaudio.functional.resample(all_zs, 128, 512)
 
             print(f"RAVE After Resampling {all_zs.shape=}")
     
@@ -654,7 +654,7 @@ def main(low_highs, baseline_name, args):
         print(f"{inputs.shape=}", flush=True)
         if args.mode == "cond":
             zs = model.get_zs(inputs.cuda())
-        elif args.model == "blend":
+        elif args.mode == "blend":
             z1 = model.get_zs(inputs[:, 0].cuda())
             z2 = model.get_zs(inputs[:, 1].cuda())
             zs = torch.stack((z1, z2), dim=1)
@@ -785,11 +785,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--fmdiffae_bandpass_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/bandpass3compiled_retry_2/checkpoints/21000-3.041.ckpt",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/bandpass3compiled_retry_2/checkpoints/30000-2.580.ckpt",
     )
     parser.add_argument(
         "--dac_frontend_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/dac_encoder3_128_3/checkpoints/75000-0.938.ckpt",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/dac_encoder3_128_3/checkpoints/120000-0.719.ckpt",
     )
     parser.add_argument(
         "--rave_path",

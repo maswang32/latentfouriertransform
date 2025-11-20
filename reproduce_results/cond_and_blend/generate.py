@@ -162,7 +162,15 @@ def main(low_highs, baseline_name, args):
         "abl_dft",
     ]:
         data_type = "spec"
-    elif baseline_name in ["audio", "cross", "dac", "vampnet", "abl_no_encoder", "dac_frontend"]:
+    elif baseline_name in [
+        "audio",
+        "cross",
+        "dac",
+        "rave",
+        "vampnet",
+        "abl_no_encoder",
+        "dac_frontend",
+    ]:
         data_type = "audio"
     else:
         raise ValueError
@@ -225,9 +233,9 @@ def main(low_highs, baseline_name, args):
             ckpt_path=ckpt_path,
             strict=True,
         ).cuda()
-        
+
         no_dft = baseline_name == "abl_dft"
-        
+
         # Generate
         specs = model.batch_generate(
             batch_size=args.batch_size,
@@ -334,6 +342,60 @@ def main(low_highs, baseline_name, args):
             audios = audios.squeeze(-2)
             print(f"after squeeze {audios.shape=}")
 
+    if baseline_name == "rave":
+        with torch.no_grad():
+            rave = torch.jit.load(args.rave_path)
+            inputs = torchaudio.functional.resample(inputs, 22050, 44100)
+            inputs = inputs.unsqueeze(-2)  # Need Channel Dim
+
+            if args.mode == "blend":
+                inputs = inputs.flatten(0, 1)
+
+            print(f"RAVE {inputs.shape=}")
+
+            all_zs = torch.cat(
+                [rave.encoder.reparametrize(rave.encoder(rave.pqmf(x[None].cuda())))[0].cpu() for x in inputs], dim=0
+            )
+
+            print(f"RAVE {all_zs.shape=}")
+            
+            # Resample Latents to Match Our Frame Rate
+            all_zs = torchaudio.functional.resample(inputs, 128, 512)
+
+            print(f"RAVE After Resampling {all_zs.shape=}")
+    
+            freq_mask = CorrelatedFFTMask(n_fft=all_zs.shape[-1])
+
+            if args.mode == "cond":
+                all_zs = freq_mask(all_zs, lows=lows, highs=highs)
+
+            elif args.mode == "blend":
+                print(f"blend, before unflatten {all_zs.shape=}")
+                all_zs = all_zs.unflatten(0, (-1, 2))
+
+                print(f"blend, after unflatten {all_zs.shape=}")
+                all_zs = (
+                    freq_mask(all_zs[:, 0], lows=lows[:, 0], highs=highs[:, 0])
+                    * blend_weights[0]
+                    + freq_mask(all_zs[:, 1], lows=lows[:, 1], highs=highs[:, 1])
+                    * blend_weights[1]
+                )
+            print(f"after fftmask {all_zs.shape=}")
+            all_outs = torch.cat(
+                [rave.pqmf.inverse(rave.decoder(z[None].cuda())).cpu() for z in all_zs], dim=0
+            )
+            print(f"after fftmask {all_outs.shape=}")
+
+            audios = torchaudio.functional.resample(all_outs, 44100, 22050)
+            print(f"before squeeze {audios.shape=}")
+
+            audios = audios.squeeze(-2)
+            print(f"after squeeze {audios.shape=}")
+
+    
+    
+    
+    
     if baseline_name == "guidance":
         # Load Model
         model = FMDiffAEModule.load_torch_model(
@@ -587,7 +649,7 @@ def main(low_highs, baseline_name, args):
             ckpt_path=args.dac_frontend_ckpt_path,
             strict=True,
         ).cuda()
-        
+
         # N, T OR N, 2, T
         print(f"{inputs.shape=}", flush=True)
         if args.mode == "cond":
@@ -616,9 +678,6 @@ def main(low_highs, baseline_name, args):
 
         # Output datatype is specs, so we switch this flag
         data_type = "spec"
-
-        
-        
 
     if data_type == "spec":
         # Invert to Audio
@@ -732,6 +791,11 @@ if __name__ == "__main__":
         "--dac_frontend_ckpt_path",
         default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/dac_encoder3_128_3/checkpoints/75000-0.938.ckpt",
     )
+    parser.add_argument(
+        "--rave_path",
+        default="/data/hai-res/ycda/gen/fmdiffae/exp/pretrained_checkpoints/rave_pretrained_musicnet.ts",
+    )
+
 
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
@@ -772,7 +836,7 @@ if __name__ == "__main__":
             "abl_no_encoder",
         ]
     elif args.baseline_name == "rebuttals":
-        list_of_baselines = ["fmdiffae_bandpass", "dac_frontend"]
+        list_of_baselines = ["fmdiffae_bandpass", "dac_frontend", "abl_dft", "rave"]
     else:
         list_of_baselines = [args.baseline_name]
 

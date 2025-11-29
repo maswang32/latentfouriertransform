@@ -67,6 +67,12 @@ if __name__ == "__main__":
         type=int,
         default=4096,
     )
+    parser.add_argument(
+        "--energy_threshold",
+        help="energy threshold for chunks",
+        type=float,
+        default=0.003,
+    )
     args = parser.parse_args()
 
     # Below code orients us within our filesystem - edit this based on where your directories are.
@@ -117,7 +123,7 @@ if __name__ == "__main__":
             save_dir=split_dir,
             maxcount=args.wds_maxcount,
             transform_kwargs={"load_model_on_init": False},
-            chunk_audio_kwargs={"chunk_length_samples": args.chunk_length_samples},
+            chunk_audio_kwargs={"chunk_length_samples": args.chunk_length_samples, "energy_threshold":args.energy_threshold},
         )
 
     for split in ["valid", "test"]:

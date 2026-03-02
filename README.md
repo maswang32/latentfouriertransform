@@ -1,5 +1,6 @@
 ﻿# Latent Fourier Transform
 
+README is a work in progress.
 
 Notes:
 

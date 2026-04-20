@@ -1,17 +1,17 @@
 ﻿# Latent Fourier Transform
 
-Code for [**Latent Fourier Transform**][project-page] (ICLR 2026, **oral**)
+Code for [**Latent Fourier Transform**][project-page] (ICLR 2026, **Oral**)
 by [Mason L. Wang](https://masonlwang.com/) and
 [Cheng-Zhi Anna Huang](https://czhuang.github.io/) (CSAIL, MIT).
 
-- Project page + audio demos: <https://masonlwang.com/latentfouriertransform/>
-- Paper (OpenReview): <https://openreview.net/forum?id=ogMxCjdCCq>
+- [Project page + audio demos](https://masonlwang.com/latentfouriertransform/)
+- [Paper (OpenReview)](https://openreview.net/forum?id=ogMxCjdCCq)
 <!-- TODO: fill in once the arXiv link is live -->
-- arXiv: <https://arxiv.org/abs/TODO>
+- [arXiv](https://arxiv.org/abs/TODO)
 
 [project-page]: https://masonlwang.com/latentfouriertransform/
 
-## What is this?
+## Overview
 
 LATENTFT is a framework that provides **frequency-domain controls in latent
 space** for generative music models. It combines a diffusion autoencoder
@@ -39,8 +39,9 @@ This repo contains two things:
   correlated FFT mask module, BigVGAN mel-spectrogram transform, VGGish-based
   FAD utilities, and Lightning modules for training.
 - **`reproduce_results/`** — the scripts, Hydra configs, and entry points
-  needed to regenerate every table and figure in the paper. See the
-  [Reproducing paper results](#reproducing-paper-results) section below.
+  used for the paper's quantitative experiments, baselines, and ablations.
+  See [Reproducing paper results](#reproducing-paper-results) below for
+  what's supported out-of-the-box and the current [caveats](#caveats).
 
 ## Install
 

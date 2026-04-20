@@ -1,3 +1,4 @@
+import config  # noqa: F401  -- populates os.environ with user settings
 import os
 import csv
 import glob
@@ -75,22 +76,22 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Below code orients us within our filesystem - edit this based on where your directories are.
-    raw_base_dir = "/data/hai-res/shared/datasets/mtg-jamendo/raw"
-    # directory to all processed versions of the dataset
-    save_base_dir = "/data/hai-res/ycda/processed-datasets/mtg-jamendo"
+    # Filesystem layout is driven by env vars set in config.py (see config.example.py).
+    raw_base_dir = os.environ["MTG_JAMENDO_RAW_DIR"]
+    save_base_dir = os.path.join(os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo")
+    splits_dir = os.environ["MTG_JAMENDO_SPLITS_DIR"]
 
     if args.only_inst_tagged:
         tsv_paths = {
-            "train": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-train.tsv",
-            "valid": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-validation.tsv",
-            "test": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-test.tsv",
+            "train": os.path.join(splits_dir, "autotagging_instrument-train.tsv"),
+            "valid": os.path.join(splits_dir, "autotagging_instrument-validation.tsv"),
+            "test":  os.path.join(splits_dir, "autotagging_instrument-test.tsv"),
         }
     else:
         tsv_paths = {
-            "train": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging-train.tsv",
-            "valid": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging-validation.tsv",
-            "test": "/data/hai-res/shared/datasets/mtg-jamendo/mtg-jamendo-dataset/data/splits/split-0/autotagging_instrument-test.tsv",
+            "train": os.path.join(splits_dir, "autotagging-train.tsv"),
+            "valid": os.path.join(splits_dir, "autotagging-validation.tsv"),
+            "test":  os.path.join(splits_dir, "autotagging_instrument-test.tsv"),
         }
 
     # Write Audio

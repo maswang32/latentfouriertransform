@@ -3,7 +3,7 @@ defaults:
   - freq_mask: correlated_fft_mask
   - _self_
 
-_target_: latentft.diffusion.latentft.FMDiffAE
+_target_: latentft.diffusion.fmdiffae.FMDiffAE
 decoder:
   _target_: latentft.arc.unet1d.UNet1d
   data_resolution: 512

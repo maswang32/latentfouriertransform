@@ -2,7 +2,7 @@ name: debug_run
 ckpt_path: null
 
 # Save Directories
-run_dir: exp/runs/${name}
+run_dir: ${oc.env:EXP_DIR,./exp}/runs/${name}
 hydra:
   run:
     dir: ${run_dir}

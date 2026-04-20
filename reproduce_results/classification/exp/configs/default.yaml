@@ -9,7 +9,7 @@ hydra:
 
 # Imports
 defaults:
-  - data: irmas_5s
+  - data: gtzan_5s
   - model: linear_probe
   - _self_
 

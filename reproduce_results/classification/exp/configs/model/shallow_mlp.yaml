@@ -1,9 +1,0 @@
-_target_: torch.nn.Sequential
-_args_:
-  - _target_: torch.nn.Linear
-    in_features: 768
-    out_features: 256
-  - _target_: torch.nn.ReLU
-  - _target_: torch.nn.Linear
-    in_features: 256
-    out_features: 10

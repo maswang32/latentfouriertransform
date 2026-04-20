@@ -6,9 +6,9 @@ import argparse
 import numpy as np
 import webdataset as wds
 from tqdm import tqdm
-from fmdiffae.data.data_utils import save_webdataset
-from fmdiffae.utils.fad import get_embeddings_vggish
-from fmdiffae.data.data_utils import get_webdataset
+from latentft.data.data_utils import save_webdataset
+from latentft.utils.fad import get_embeddings_vggish
+from latentft.data.data_utils import get_webdataset
 
 
 def load_jamendo_tsv(tsv_path):

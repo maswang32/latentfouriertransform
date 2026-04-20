@@ -7,10 +7,10 @@ import torchaudio
 
 import argparse
 
-from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
-from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
-from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
-from fmdiffae.utils.fad import get_embeddings_vggish
+from latentft.arc.correlated_fft_mask import CorrelatedFFTMask
+from latentft.lightning.lit_fmdiffae import FMDiffAEModule
+from latentft.transforms.bigvgan_transform import BigVGANTransform
+from latentft.utils.fad import get_embeddings_vggish
 from reproduce_results.baselines_and_ablations.unconditional import (
     spectral_guidance,
     dual_spectral_guidance,
@@ -20,7 +20,7 @@ from reproduce_results.baselines_and_ablations.cross_synthesis import (
 )
 
 TEST_DATA_DIR = os.path.join(
-    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s_test"
+    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s"
 )
 EXP_DIR = os.environ["EXP_DIR"]
 PRETRAINED_DIR = os.environ["PRETRAINED_DIR"]
@@ -706,38 +706,6 @@ def main(low_highs, baseline_name, args):
         print(f"{vggish_embeddings.shape=}", flush=True)
         torch.save(vggish_embeddings, os.path.join(save_dir, "vggish_embeddings.pt"))
 
-    if args.compute_BEATs_embeddings:
-        from beats.BEATs import BEATs, BEATsConfig
-
-        with torch.no_grad():
-            beats_ckpt = torch.load(
-                os.path.join(PRETRAINED_DIR, "BEATs_iter3_plus_AS2M.pt")
-            )
-            cfg = BEATsConfig(beats_ckpt["cfg"])
-            BEATs_model = BEATs(cfg)
-            BEATs_model.load_state_dict(beats_ckpt["model"])
-            BEATs_model.eval()
-            BEATs_model = BEATs_model.cuda()
-
-            batched_indices = torch.arange(args.num_examples).split(
-                args.beats_batch_size, dim=0
-            )
-            beats_embeddings = torch.zeros(args.num_examples, 296, 768)
-
-            for batch_indices in batched_indices:
-                batch_audios = audios[batch_indices].cuda()
-                batch_audios = torchaudio.functional.resample(
-                    batch_audios, 22050, 16000
-                )
-                padding_mask = torch.zeros_like(batch_audios).bool()
-                representations = BEATs_model.extract_features(
-                    batch_audios, padding_mask=padding_mask
-                )[0]
-                beats_embeddings[batch_indices] = representations.cpu()
-
-            print(f"{beats_embeddings.shape=}", flush=True)
-            torch.save(beats_embeddings, os.path.join(save_dir, "beats_embeddings.pt"))
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -778,12 +746,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_compute_vggish_embeddings", action="store_true", default=False
     )
-    parser.add_argument(
-        "--compute_BEATs_embeddings", action="store_true", default=False
-    )
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--transform_batch_size", type=int, default=128)
-    parser.add_argument("--beats_batch_size", type=int, default=128)
     parser.add_argument("--vampnet_batch_size", type=int, default=128)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
     parser.add_argument("--num_steps", type=int, default=100)

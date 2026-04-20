@@ -6,7 +6,7 @@ import glob
 import webdataset as wds
 from webdataset import ShardWriter
 from tqdm import tqdm
-from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
+from latentft.transforms.bigvgan_transform import BigVGANTransform
 from torch.utils.data.dataset import Dataset
 
 

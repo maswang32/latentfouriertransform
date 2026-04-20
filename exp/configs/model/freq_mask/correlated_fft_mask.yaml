@@ -1,4 +1,4 @@
-_target_: fmdiffae.arc.correlated_fft_mask.CorrelatedFFTMask
+_target_: latentft.arc.correlated_fft_mask.CorrelatedFFTMask
 n_fft: 1024
 sigma: 0.5
 p: 2

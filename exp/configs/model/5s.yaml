@@ -3,9 +3,9 @@ defaults:
   - freq_mask: correlated_fft_mask
   - _self_
 
-_target_: fmdiffae.diffusion.fmdiffae.FMDiffAE
+_target_: latentft.diffusion.latentft.FMDiffAE
 decoder:
-  _target_: fmdiffae.arc.unet1d.UNet1d
+  _target_: latentft.arc.unet1d.UNet1d
   data_resolution: 512
   in_channels: 160
   out_channels: 80

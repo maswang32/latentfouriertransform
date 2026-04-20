@@ -13,7 +13,7 @@ import lightning as L
 from lightning import seed_everything
 from torchmetrics import Accuracy
 
-from fmdiffae.lightning.lit_data_module import BaseDataModule
+from latentft.lightning.lit_data_module import BaseDataModule
 
 
 class ClassificationDataset(Dataset):

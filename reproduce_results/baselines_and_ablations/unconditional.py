@@ -6,8 +6,8 @@ from tqdm import tqdm
 
 from lightning.pytorch.callbacks import Callback
 
-from fmdiffae.utils.fad import get_embeddings_vggish, compute_fad_from_embeddings
-from fmdiffae.lightning.callbacks import print_once
+from latentft.utils.fad import get_embeddings_vggish, compute_fad_from_embeddings
+from latentft.lightning.callbacks import print_once
 
 
 class EDM(nn.Module):

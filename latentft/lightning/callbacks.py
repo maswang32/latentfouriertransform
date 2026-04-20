@@ -6,7 +6,7 @@ import wandb
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
-from fmdiffae.utils.fad import get_embeddings_vggish, compute_fad_from_embeddings
+from latentft.utils.fad import get_embeddings_vggish, compute_fad_from_embeddings
 
 
 @rank_zero_only

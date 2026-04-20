@@ -4,8 +4,8 @@ import torch
 import hydra
 from hydra.utils import instantiate
 from lightning import seed_everything
-from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
-from fmdiffae.lightning.lit_data_module import BaseDataModule
+from latentft.lightning.lit_fmdiffae import FMDiffAEModule
+from latentft.lightning.lit_data_module import BaseDataModule
 
 
 @hydra.main(

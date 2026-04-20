@@ -7,10 +7,10 @@ import torch.nn.functional as F
 import librosa
 import essentia.standard as es
 from tqdm import tqdm
-from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
-from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
-from fmdiffae.utils.fad import get_embeddings_vggish
-from fmdiffae.data.data_utils import resample
+from latentft.lightning.lit_fmdiffae import FMDiffAEModule
+from latentft.transforms.bigvgan_transform import BigVGANTransform
+from latentft.utils.fad import get_embeddings_vggish
+from latentft.data.data_utils import resample
 
 
 def nearest_odd(x):

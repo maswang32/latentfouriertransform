@@ -24,7 +24,7 @@ os.environ["MTG_JAMENDO_RAW_DIR"] = "/path/to/mtg-jamendo/raw"
 
 # Processed datasets. Expected layout:
 #   <PROCESSED_DATA_DIR>/
-#     mtg-jamendo/full-5s/   # Generated using `python fmdiffae/data/mtg_jamendo.py full-5s`
+#     mtg-jamendo/full-5s/   # Generated using `python latentft/data/mtg_jamendo.py full-5s`
 #     gtzan/                 # Optional, only needed to reproduce sweep results. Store VGGish features + genre labels (classification)
 os.environ["PROCESSED_DATA_DIR"] = "/path/to/processed-datasets"
 

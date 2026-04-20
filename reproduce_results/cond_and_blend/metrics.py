@@ -9,18 +9,16 @@ import librosa.onset as O
 import os
 import json
 import argparse
-from glob import glob
-from tqdm import tqdm
 
-from fmdiffae.arc.correlated_fft_mask import CorrelatedFFTMask
-from fmdiffae.utils.fad import compute_fad_from_embeddings
+from latentft.arc.correlated_fft_mask import CorrelatedFFTMask
+from latentft.utils.fad import compute_fad_from_embeddings
 from reproduce_results.cond_and_blend.generate import (
     get_all_low_highs,
     get_band_identifier,
 )
 
 TEST_DATA_DIR = os.path.join(
-    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s_test"
+    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s"
 )
 
 
@@ -343,42 +341,6 @@ class Aggregator:
                 json.dump(all_results, f, indent=2)
 
         return all_results
-
-
-def compute_MSD(x):
-    """
-    X: N, D
-    This implementation takes up more memory, but is more numerically accurate
-    Than the version that uses the gram matrix.
-    """
-    N = x.shape[0]
-    sq_distances = torch.sum((x[:, None, :] - x[None, :, :]) ** 2, axis=-1)
-    mask = ~torch.eye(N, dtype=torch.bool)
-    return sq_distances[mask].mean()
-
-
-def compute_beat_embeddings_msd(beat_embeddings, num_trials, num_songs):
-    beat_embeddings = beat_embeddings.reshape(num_trials, num_songs, -1)
-    total = 0
-    for i in tqdm(range(num_songs)):
-        total += compute_MSD(beat_embeddings[:, i])
-    return total / num_songs
-
-
-def compute_diversity_metric(
-    baseline_dir,
-    num_trials,
-    num_songs,
-    file_name="beats_embeddings.pt",
-):
-    paths = glob(os.path.join(baseline_dir, "*", file_name))
-    num_paths = len(paths)
-
-    total = 0
-    for path in paths:
-        beats_embeddings = torch.load(path)
-        total += compute_beat_embeddings_msd(beats_embeddings, num_trials, num_songs)
-    return total / num_paths
 
 
 if __name__ == "__main__":

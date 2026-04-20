@@ -12,8 +12,8 @@ import matplotlib.colors as mcolors
 import subprocess
 
 from typing import List, Optional
-from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
-from fmdiffae.transforms.bigvgan_transform import BigVGANTransform
+from latentft.lightning.lit_fmdiffae import FMDiffAEModule
+from latentft.transforms.bigvgan_transform import BigVGANTransform
 
 
 HERO_STYLE = {

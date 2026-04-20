@@ -7,14 +7,14 @@ ref_mean_path: ${data.root_dir}/valid_vggish_mean.npy
 ref_cov_path: ${data.root_dir}/valid_vggish_cov.npy
 
 train_dataset:
-  _target_: fmdiffae.data.data_utils.get_webdataset
+  _target_: latentft.data.data_utils.get_webdataset
   split: train
   base_dir: ${data.root_dir}
   data_type: spec
   shuffle_size: 2048
 
 valid_dataset:
-  _target_: fmdiffae.data.data_utils.SingleTensorDataset
+  _target_: latentft.data.data_utils.SingleTensorDataset
   path: ${data.root_dir}/valid_subset_spec.npy
     
 train_dataloader:
@@ -32,5 +32,5 @@ valid_dataloader:
   persistent_workers: False
 
 transform:
-  _target_: fmdiffae.transforms.bigvgan_transform.BigVGANTransform
+  _target_: latentft.transforms.bigvgan_transform.BigVGANTransform
   batch_size: 128

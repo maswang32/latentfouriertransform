@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fmdiffae.arc.unet1d import GroupNorm
+from latentft.arc.unet1d import GroupNorm
 
 
 class PointwiseNet(nn.Module):

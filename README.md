@@ -1,8 +1,8 @@
 ﻿# Latent Fourier Transform
 
 Code for [**Latent Fourier Transform**][project-page] (ICLR 2026, **oral**)
-by [Mason L. Wang](mailto:ycda@csail.mit.edu) and
-[Cheng-Zhi Anna Huang](mailto:huangcza@mit.edu) (CSAIL, MIT).
+by [Mason L. Wang](https://masonlwang.com/) and
+[Cheng-Zhi Anna Huang](https://czhuang.github.io/) (CSAIL, MIT).
 
 - Project page + audio demos: <https://masonlwang.com/latentfouriertransform/>
 - Paper (OpenReview): <https://openreview.net/forum?id=ogMxCjdCCq>

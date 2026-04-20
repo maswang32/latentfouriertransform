@@ -5,7 +5,8 @@ by [Mason L. Wang](https://masonlwang.com/) and
 [Cheng-Zhi Anna Huang](https://czhuang.github.io/) (CSAIL, MIT).
 
 - [Project page + audio demos](https://masonlwang.com/latentfouriertransform/)
-- [Paper (OpenReview)](https://openreview.net/forum?id=ogMxCjdCCq)
+- [Paper](https://openreview.net/pdf?id=ogMxCjdCCq)
+- [OpenReview](https://openreview.net/forum?id=ogMxCjdCCq)
 <!-- - [arXiv](https://arxiv.org/abs/TODO) -->
 
 [project-page]: https://masonlwang.com/latentfouriertransform/

@@ -1,19 +1,21 @@
 sample_rate: 22050
 batch_size: ${batch_size}
 
-ref_mean_path: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_mean.npy
-ref_cov_path: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_vggish_cov.npy
+root_dir: ${oc.env:PROCESSED_DATA_DIR}/mtg-jamendo/full-5s
+
+ref_mean_path: ${data.root_dir}/valid_vggish_mean.npy
+ref_cov_path: ${data.root_dir}/valid_vggish_cov.npy
 
 train_dataset:
   _target_: fmdiffae.data.data_utils.get_webdataset
   split: train
-  base_dir: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s
+  base_dir: ${data.root_dir}
   data_type: spec
   shuffle_size: 2048
 
 valid_dataset:
   _target_: fmdiffae.data.data_utils.SingleTensorDataset
-  path: /data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s/valid_subset_spec.npy
+  path: ${data.root_dir}/valid_subset_spec.npy
     
 train_dataloader:
   _target_: webdataset.WebLoader

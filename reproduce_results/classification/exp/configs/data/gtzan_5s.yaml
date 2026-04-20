@@ -2,15 +2,17 @@ batch_size: ${batch_size}
 num_classes: 10
 data_type: vggish_embeddings
 
+root_dir: ${oc.env:PROCESSED_DATA_DIR}/gtzan
+
 train_dataset:
   _target_: reproduce_results.classification.classification.ClassificationDataset
-  data_path: "/data/hai-res/ycda/processed-datasets/gtzan/train_${data.data_type}.npy"
-  labels_path: /data/hai-res/ycda/processed-datasets/gtzan/train_genre.npy
+  data_path: ${data.root_dir}/train_${data.data_type}.npy
+  labels_path: ${data.root_dir}/train_genre.npy
 
 valid_dataset:
   _target_: reproduce_results.classification.classification.ClassificationDataset
-  data_path: "/data/hai-res/ycda/processed-datasets/gtzan/valid_${data.data_type}.npy"
-  labels_path: /data/hai-res/ycda/processed-datasets/gtzan/valid_genre.npy
+  data_path: ${data.root_dir}/valid_${data.data_type}.npy
+  labels_path: ${data.root_dir}/valid_genre.npy
 
 train_dataloader:
   _target_: torch.utils.data.DataLoader

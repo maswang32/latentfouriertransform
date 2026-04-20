@@ -1,3 +1,4 @@
+import config  # noqa: F401  -- populates os.environ with user settings
 import os
 
 import numpy as np
@@ -16,6 +17,10 @@ from reproduce_results.baselines_and_ablations.unconditional import (
 )
 from reproduce_results.baselines_and_ablations.cross_synthesis import (
     get_cross_synthesis,
+)
+
+TEST_DATA_DIR = os.path.join(
+    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s_test"
 )
 
 
@@ -745,11 +750,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--spec_data_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_spec.npy",
+        default=f"{TEST_DATA_DIR}/test_subset_spec.npy",
     )
     parser.add_argument(
         "--audio_data_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
+        default=f"{TEST_DATA_DIR}/test_subset_audio.npy",
     )
     parser.add_argument(
         "--fmdiffae_point_ckpt_path",

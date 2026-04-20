@@ -1,3 +1,4 @@
+import config  # noqa: F401  -- populates os.environ with user settings
 import numpy as np
 import torch
 
@@ -16,6 +17,10 @@ from fmdiffae.utils.fad import compute_fad_from_embeddings
 from reproduce_results.cond_and_blend.generate import (
     get_all_low_highs,
     get_band_identifier,
+)
+
+TEST_DATA_DIR = os.path.join(
+    os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s_test"
 )
 
 
@@ -180,8 +185,8 @@ class Aggregator:
         self,
         exp_dir,
         num_examples=1024,
-        ref_audios_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
-        ref_emb_path="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_vggish_embeddings.npy",
+        ref_audios_path=f"{TEST_DATA_DIR}/test_subset_audio.npy",
+        ref_emb_path=f"{TEST_DATA_DIR}/test_vggish_embeddings.npy",
         n_fft=1024,
         hop_length=256,
         win_length=1024,
@@ -386,11 +391,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_examples", type=int, default=1024)
     parser.add_argument(
         "--ref_audios_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_subset_audio.npy",
+        default=f"{TEST_DATA_DIR}/test_subset_audio.npy",
     )
     parser.add_argument(
         "--ref_emb_path",
-        default="/data/hai-res/ycda/processed-datasets/mtg-jamendo/full-5s_test/test_vggish_embeddings.npy",
+        default=f"{TEST_DATA_DIR}/test_vggish_embeddings.npy",
     )
     parser.add_argument("--n_fft", type=int, default=1024)
     parser.add_argument("--hop_length", type=int, default=256)

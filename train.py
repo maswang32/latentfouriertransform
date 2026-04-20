@@ -1,7 +1,7 @@
+import config  # noqa: F401  -- populates os.environ with user settings
 import os
 import torch
 import hydra
-import wandb
 from hydra.utils import instantiate
 from lightning import seed_everything
 from fmdiffae.lightning.lit_fmdiffae import FMDiffAEModule
@@ -15,8 +15,6 @@ from fmdiffae.lightning.lit_data_module import BaseDataModule
 )
 def main(config):
     seed_everything(config.seed, workers=True)
-    wandb.login(key="2ed9110b61c4bd8c0534e383f5373cd0cc7919af")
-
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
 
     # Find where we should load the checkpoint

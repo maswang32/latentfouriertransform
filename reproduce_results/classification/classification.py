@@ -1,3 +1,4 @@
+import config  # noqa: F401  -- populates os.environ with user settings
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,8 +12,6 @@ from omegaconf import OmegaConf, DictConfig
 import lightning as L
 from lightning import seed_everything
 from torchmetrics import Accuracy
-
-import wandb
 
 from fmdiffae.lightning.lit_data_module import BaseDataModule
 
@@ -102,7 +101,6 @@ class ClassifierModule(L.LightningModule):
 )
 def main(config):
     seed_everything(config.seed, workers=True)
-    wandb.login(key="2ed9110b61c4bd8c0534e383f5373cd0cc7919af")
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
 
     data_module = BaseDataModule(config.data)

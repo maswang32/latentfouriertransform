@@ -36,6 +36,9 @@ class FMDiffAEModule(L.LightningModule):
             "lr_scheduler": {"scheduler": scheduler, "interval": "step"},
         }
 
+    # On resume, Lightning restores the scheduler's adjusted LR from the checkpoint.
+    # Uncomment this hook to force the LR back to the config's target value when
+    # resuming (i.e., to override the saved scheduler state with a fresh LR).
     # def on_train_start(self):
     #     target_lr = self.hparams["optimizer"]["lr"]
     #     for optimizer in self.trainer.optimizers:

@@ -157,9 +157,9 @@ command auto-resumes from `checkpoints/last.ckpt`.
 
 ### Annealing (for paper-quality checkpoints)
 
-The main paper's numbers (Appendix A.3) were produced with roughly 700k
-total training steps. We run this in **two stages** rather than a single
-long run:
+The checkpoints used for the paper's reported numbers were produced with
+roughly 700k total training steps. We run this in **two stages** rather
+than a single long run:
 
 1. A 350k-step run using the default config above.
 2. A second 350k-step run initialized from stage 1's checkpoint, with the
@@ -210,8 +210,8 @@ python reproduce_results/cond_and_blend/generate.py \
   reference clip while preserving patterns at a chosen latent frequency band.
 - `blend`: blending (Sec 4.3). Blends two reference clips, taking
   patterns at different latent frequency bands from each. This mode is
-  also used for the isolation / "zoom in" experiment (Sec 4.5) via a
-  self-blending configuration described in Appendix A.8 of the paper.
+  also used for the isolation / "zoom in" experiment (Sec 4.5), where
+  the two "reference" clips are actually the same clip (self-blending).
 
 **`baseline_name`** accepts any individual baseline or a group alias:
 

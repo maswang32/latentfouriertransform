@@ -22,6 +22,8 @@ from reproduce_results.baselines_and_ablations.cross_synthesis import (
 TEST_DATA_DIR = os.path.join(
     os.environ["PROCESSED_DATA_DIR"], "mtg-jamendo", "full-5s_test"
 )
+EXP_DIR = os.environ["EXP_DIR"]
+PRETRAINED_DIR = os.environ["PRETRAINED_DIR"]
 
 
 # Compute All Low_Highs
@@ -709,7 +711,7 @@ def main(low_highs, baseline_name, args):
 
         with torch.no_grad():
             beats_ckpt = torch.load(
-                "/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/diversity/BEATs_iter3_plus_AS2M.pt"
+                os.path.join(PRETRAINED_DIR, "BEATs_iter3_plus_AS2M.pt")
             )
             cfg = BEATsConfig(beats_ckpt["cfg"])
             BEATs_model = BEATs(cfg)
@@ -746,7 +748,7 @@ if __name__ == "__main__":
     parser.add_argument("--low_high_idx", type=int, default=-1)
     parser.add_argument(
         "--exp_base_dir",
-        default="/data/hai-res/ycda/gen/fmdiffae/reproduce_results/cond_and_blend/exp/outputs",
+        default=f"{EXP_DIR}/reproduce_results/cond_and_blend/outputs",
     )
     parser.add_argument(
         "--spec_data_path",
@@ -756,49 +758,19 @@ if __name__ == "__main__":
         "--audio_data_path",
         default=f"{TEST_DATA_DIR}/test_subset_audio.npy",
     )
-    parser.add_argument(
-        "--fmdiffae_point_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/point-4gpu-5s-anneal/checkpoints/660000-0.586.ckpt",
-    )
-    parser.add_argument(
-        "--fmdiffae_unet_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/unet-5s-4gpu-anneal-retry-5/checkpoints/658500-0.802.ckpt",
-    )
-    parser.add_argument(
-        "--uncond_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/uncondo_anneal_retry/checkpoints/525000-0.398.ckpt",
-    )
-    parser.add_argument(
-        "--abl_freq_masking_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_mask/checkpoints/3000-8.068.ckpt",
-    )
-    parser.add_argument(
-        "--abl_corr_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_corr/checkpoints/102000-4.189.ckpt",
-    )
-    parser.add_argument(
-        "--abl_log_scale_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/ablate_logscale_retry/checkpoints/270000-1.378.ckpt",
-    )
-    parser.add_argument(
-        "--abl_spec_encoder_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/id-4gpu-5s/checkpoints/312000-0.745.ckpt",
-    )
-    parser.add_argument(
-        "--abl_no_encoder_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/no_encoder_retry_2/checkpoints/102000-0.658.ckpt",
-    )
-    parser.add_argument(
-        "--fmdiffae_bandpass_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/bandpass3compiled_retry_2/checkpoints/30000-2.580.ckpt",
-    )
-    parser.add_argument(
-        "--dac_frontend_ckpt_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/runs/dac_encoder3_128_3/checkpoints/120000-0.719.ckpt",
-    )
+    parser.add_argument("--fmdiffae_point_ckpt_path")
+    parser.add_argument("--fmdiffae_unet_ckpt_path")
+    parser.add_argument("--uncond_ckpt_path")
+    parser.add_argument("--abl_freq_masking_ckpt_path")
+    parser.add_argument("--abl_corr_ckpt_path")
+    parser.add_argument("--abl_log_scale_ckpt_path")
+    parser.add_argument("--abl_spec_encoder_ckpt_path")
+    parser.add_argument("--abl_no_encoder_ckpt_path")
+    parser.add_argument("--fmdiffae_bandpass_ckpt_path")
+    parser.add_argument("--dac_frontend_ckpt_path")
     parser.add_argument(
         "--rave_path",
-        default="/data/hai-res/ycda/gen/fmdiffae/exp/pretrained_checkpoints/rave_pretrained_musicnet.ts",
+        default=f"{PRETRAINED_DIR}/rave_pretrained_musicnet.ts",
     )
 
 

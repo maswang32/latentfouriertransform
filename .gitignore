@@ -4,6 +4,9 @@
 /.vscode
 **/*.egg-info
 
+# User-specific configuration (copy config.example.py to config.py and fill in)
+/config.py
+
 # Training Checkpoints/Logs
 exp/runs
 exp/slurm

@@ -155,9 +155,9 @@ def main(low_highs, baseline_name, args):
 
     # Load Data
     if baseline_name in [
-        "fmdiffae_point",
-        "fmdiffae_unet",
-        "fmdiffae_bandpass",
+        "latentft_point",
+        "latentft_unet",
+        "latentft_bandpass",
         "guidance",
         "ilvr",
         "spectrogram",
@@ -209,21 +209,21 @@ def main(low_highs, baseline_name, args):
 
     # FMDiffAE Baseline
     if baseline_name in [
-        "fmdiffae_point",
-        "fmdiffae_unet",
-        "fmdiffae_bandpass",
+        "latentft_point",
+        "latentft_unet",
+        "latentft_bandpass",
         "abl_freq_masking",
         "abl_corr",
         "abl_log_scale",
         "abl_spec_encoder",
         "abl_dft",
     ]:
-        if baseline_name == "fmdiffae_point":
-            ckpt_path = args.fmdiffae_point_ckpt_path
-        elif baseline_name == "fmdiffae_unet":
-            ckpt_path = args.fmdiffae_unet_ckpt_path
-        elif baseline_name == "fmdiffae_bandpass":
-            ckpt_path = args.fmdiffae_bandpass_ckpt_path
+        if baseline_name == "latentft_point":
+            ckpt_path = args.latentft_point_ckpt_path
+        elif baseline_name == "latentft_unet":
+            ckpt_path = args.latentft_unet_ckpt_path
+        elif baseline_name == "latentft_bandpass":
+            ckpt_path = args.latentft_bandpass_ckpt_path
         elif baseline_name in ["abl_freq_masking", "abl_dft"]:
             ckpt_path = args.abl_freq_masking_ckpt_path
         elif baseline_name == "abl_corr":
@@ -726,15 +726,15 @@ if __name__ == "__main__":
         "--audio_data_path",
         default=f"{TEST_DATA_DIR}/test_subset_audio.npy",
     )
-    parser.add_argument("--fmdiffae_point_ckpt_path")
-    parser.add_argument("--fmdiffae_unet_ckpt_path")
+    parser.add_argument("--latentft_point_ckpt_path")
+    parser.add_argument("--latentft_unet_ckpt_path")
     parser.add_argument("--uncond_ckpt_path")
     parser.add_argument("--abl_freq_masking_ckpt_path")
     parser.add_argument("--abl_corr_ckpt_path")
     parser.add_argument("--abl_log_scale_ckpt_path")
     parser.add_argument("--abl_spec_encoder_ckpt_path")
     parser.add_argument("--abl_no_encoder_ckpt_path")
-    parser.add_argument("--fmdiffae_bandpass_ckpt_path")
+    parser.add_argument("--latentft_bandpass_ckpt_path")
     parser.add_argument("--dac_frontend_ckpt_path")
     parser.add_argument(
         "--rave_path",
@@ -761,15 +761,15 @@ if __name__ == "__main__":
             "dac",
             "guidance",
             "ilvr",
-            "fmdiffae_point",
-            "fmdiffae_unet",
+            "latentft_point",
+            "latentft_unet",
             "spectrogram",
             "unconditional",
             "vampnet",
         ]
     elif args.baseline_name == "ablations":
         list_of_baselines = [
-            "fmdiffae_point",
+            "latentft_point",
             "abl_freq_masking",
             "abl_corr",
             "abl_log_scale",
@@ -777,7 +777,7 @@ if __name__ == "__main__":
             "abl_no_encoder",
         ]
     elif args.baseline_name == "rebuttals":
-        list_of_baselines = ["fmdiffae_bandpass", "dac_frontend", "abl_dft", "rave"]
+        list_of_baselines = ["latentft_bandpass", "dac_frontend", "abl_dft", "rave"]
     else:
         list_of_baselines = [args.baseline_name]
 

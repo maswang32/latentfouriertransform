@@ -115,10 +115,16 @@ blank in `config.py` and run `wandb login` once.
 
 ### GTZAN (classification only)
 
-The classification experiments train a linear probe on top of frozen
-features. You'll need a `$PROCESSED_DATA_DIR/gtzan/` directory with
-pre-extracted features and genre labels. A preprocessing script for this is
-not yet included in this release. See the [Caveats](#caveats) section.
+GTZAN is only needed for the genre linear-probe used in the
+interpretability analysis (Sec 4.6 / Fig. 5): we train a classifier on
+frozen LATENTFT features and then sweep frequency bands to measure how
+much genre information each band carries. You can skip this dataset if
+you only care about the generation results (Secs 4.1-4.5).
+
+When you do need it, the scripts expect a `$PROCESSED_DATA_DIR/gtzan/`
+directory with pre-extracted features and genre labels. A preprocessing
+script is not included in this release; see the [Caveats](#caveats)
+section.
 
 ## Training
 

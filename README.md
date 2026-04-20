@@ -118,7 +118,7 @@ blank in `config.py` and run `wandb login` once.
 The classification experiments train a linear probe on top of frozen
 features. You'll need a `$PROCESSED_DATA_DIR/gtzan/` directory with
 pre-extracted features and genre labels. A preprocessing script for this is
-not yet included in this release — see the [Caveats](#caveats) section.
+not yet included in this release. See the [Caveats](#caveats) section.
 
 ## Training
 
@@ -180,7 +180,7 @@ for the paper's reported numbers.
 
 Every script below assumes `config.py` is in place and the MTG Jamendo
 preprocessing has been run. Checkpoints produced by `train.py` (or the
-corresponding baseline trainers) are passed in explicitly via CLI flags —
+corresponding baseline trainers) are passed in explicitly via CLI flags;
 we intentionally don't hardcode checkpoint paths.
 
 ### Conditional generation and blending (main results + ablations)
@@ -200,9 +200,9 @@ python reproduce_results/cond_and_blend/generate.py \
 
 **`mode`** is one of:
 
-- `cond` — conditional generation (Sec 4.2). Generates variations of each
+- `cond`: conditional generation (Sec 4.2). Generates variations of each
   reference clip while preserving patterns at a chosen latent frequency band.
-- `blend` — blending (Sec 4.3). Blends two reference clips, taking
+- `blend`: blending (Sec 4.3). Blends two reference clips, taking
   patterns at different latent frequency bands from each. This mode is
   also used for the isolation / "zoom in" experiment (Sec 4.5) via a
   self-blending configuration described in Appendix A.8 of the paper.
@@ -255,10 +255,10 @@ same way as for the main trainer, e.g.
 These live as standalone training scripts under
 `reproduce_results/baselines_and_ablations/`:
 
-- `unconditional.py` — plain EDM diffusion trained on mels (no latent).
-- `no_encoder.py` — FMDiffAE with the encoder replaced by a deterministic
+- `unconditional.py`: plain EDM diffusion trained on mels (no latent).
+- `no_encoder.py`: FMDiffAE with the encoder replaced by a deterministic
   downsampled-audio feature, for the "no learned encoder" ablation.
-- `cross_synthesis.py` — cepstral cross-synthesis helper used for the
+- `cross_synthesis.py`: cepstral cross-synthesis helper used for the
   `cross` baseline.
 
 ### Interpreting the latent spectrum (Sec 4.6, Fig. 5)

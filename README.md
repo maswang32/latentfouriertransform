@@ -280,7 +280,7 @@ relative to the original. Requires the
 ```
 .
 ├── latentft/                    # Core library
-│   ├── arc/                     # UNet, MLP, correlated FFT mask
+│   ├── arc/                     # UNet, pointwise MLP, correlated FFT mask
 │   ├── data/                    # WebDataset utils + MTG Jamendo preprocessor
 │   ├── diffusion/fmdiffae.py    # The FMDiffAE module + EDM sampler
 │   ├── lightning/               # Lightning modules, callbacks, data module

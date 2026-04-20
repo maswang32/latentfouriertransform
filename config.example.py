@@ -8,8 +8,8 @@ Hydra (`${oc.env:VAR}`), and `os.environ[...]` all pick up these values.
 import os
 
 # Weights and Biases
-# Get your key from https://wandb.ai/authorize. Leave WANDB_API_KEY empty
-# and run `wandb login` once if you'd rather store it in ~/.netrc.
+# Get your key from https://wandb.ai/authorize. 
+# Leave WANDB_API_KEY empty and run `wandb login` once if you'd rather store it in ~/.netrc.
 os.environ["WANDB_API_KEY"] = ""
 os.environ["WANDB_ENTITY"]  = ""
 os.environ["WANDB_PROJECT"] = "fmdiffae"
@@ -24,10 +24,9 @@ os.environ["MTG_JAMENDO_RAW_DIR"] = "/path/to/mtg-jamendo/raw"
 
 # Processed datasets. Expected layout:
 #   <PROCESSED_DATA_DIR>/
-#     mtg-jamendo/full-5s/   # `python fmdiffae/data/mtg_jamendo.py full-5s`
-#     gtzan/                 # Only needed to reproduce sweep results: VGGish features + genre labels (classification)
+#     mtg-jamendo/full-5s/   # Generated using `python fmdiffae/data/mtg_jamendo.py full-5s`
+#     gtzan/                 # Optional, only needed to reproduce sweep results. Store VGGish features + genre labels (classification)
 os.environ["PROCESSED_DATA_DIR"] = "/path/to/processed-datasets"
-
 
 # Training runs go to $EXP_DIR/runs/<name>/.
 os.environ["EXP_DIR"] = "./exp"

@@ -1,4 +1,4 @@
-_target_: latentft.arc.pointwise_net.PointwiseNet
+_target_: latentft.arc.mlp.MLP
 in_channels: 80
 out_channels: 80
 hidden_channels: [512, 512, 512, 512, 512, 512, 512, 512]

@@ -1,5 +1,5 @@
 defaults:
-  - encoder: pointwise
+  - encoder: mlp
   - freq_mask: correlated_fft_mask
   - _self_
 

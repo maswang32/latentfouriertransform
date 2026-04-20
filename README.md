@@ -15,7 +15,7 @@ by [Mason L. Wang](https://masonlwang.com/) and
 LATENTFT is a framework that provides **frequency-domain controls in latent
 space** for generative music models. It combines a diffusion autoencoder
 with a Fourier transform applied to the latent time series, so that
-different musical patterns end up at different latent frequencies — i.e.
+different musical patterns end up at different latent frequencies, i.e.
 separated by *timescale*. Masking those latent frequencies during training
 yields representations that can be manipulated coherently at inference,
 allowing us to:
@@ -33,11 +33,11 @@ complementing the traditional audible-frequency equalizer.
 
 This repo contains two things:
 
-- **`latentft/`** — the core library. The Frequency-Masked Diffusion
-  AutoEncoder (FMDiffAE) model, EDM-style sampler, UNet / pointwise encoders,
+- **`latentft/`**: the core library. The Frequency-Masked Diffusion
+  AutoEncoder (FMDiffAE) model, EDM-style sampler, UNet / MLP encoders,
   correlated FFT mask module, BigVGAN mel-spectrogram transform, VGGish-based
   FAD utilities, and Lightning modules for training.
-- **`reproduce_results/`** — the scripts, Hydra configs, and entry points
+- **`reproduce_results/`**: the scripts, Hydra configs, and entry points
   used for the paper's quantitative experiments, baselines, and ablations.
   See [Reproducing paper results](#reproducing-paper-results) below for
   what's supported out-of-the-box and the current [caveats](#caveats).
@@ -67,7 +67,7 @@ pip install -e ".[reproduce_results]"
 ```
 
 The extras (`librosa`, `essentia`, `descript-audio-codec`, `mir_eval`)
-are imported only from scripts under `reproduce_results/` — specifically
+are imported only from scripts under `reproduce_results/`, specifically
 for evaluation metrics, baseline models (DAC, RAVE, VampNet), and the
 sweep / demo scripts. You don't need them for `train.py`.
 
@@ -149,6 +149,29 @@ Checkpoints and W&B artifacts are written to
 `$EXP_DIR/runs/<name>/`. If training is interrupted, re-running the same
 command auto-resumes from `checkpoints/last.ckpt`.
 
+### Annealing (for paper-quality checkpoints)
+
+The main paper's numbers (Appendix A.3) were produced with roughly 700k
+total training steps. We run this in **two stages** rather than a single
+long run:
+
+1. A 350k-step run using the default config above.
+2. A second 350k-step run initialized from stage 1's checkpoint, with the
+   learning rate annealed down. Launch this as a separate `train.py`
+   invocation, pointing at the previous checkpoint:
+
+   ```bash
+   python train.py \
+       name=unet-5s-4gpu-anneal \
+       ckpt_path=$EXP_DIR/runs/unet-5s-4gpu/checkpoints/last.ckpt \
+       scheduler=<your-anneal-scheduler> \
+       trainer.max_steps=350000
+   ```
+
+The default 350k-step config is sufficient on its own for a reasonable
+baseline; the second annealing stage is what produced the checkpoints used
+for the paper's reported numbers.
+
 ## Reproducing paper results
 
 > **Note:** The scripts in this section require the `[reproduce_results]`
@@ -164,32 +187,58 @@ we intentionally don't hardcode checkpoint paths.
 
 `reproduce_results/cond_and_blend/generate.py` runs the full generation
 pipeline across the paper's baselines and ablations. It takes an experiment
-name, a baseline name (or a group like `all` / `ablations` / `rebuttals`),
-and a conditioning mode:
+name, a baseline name (or a group alias), and a mode:
 
 ```bash
 python reproduce_results/cond_and_blend/generate.py \
     <exp_name> <baseline_name> <mode> \
-    --latentft_point_ckpt_path  $EXP_DIR/runs/.../660000-0.586.ckpt \
-    --latentft_unet_ckpt_path   $EXP_DIR/runs/.../658500-0.802.ckpt \
-    --uncond_ckpt_path          $EXP_DIR/runs/.../...ckpt
+    --latentft_mlp_ckpt_path   $EXP_DIR/runs/.../660000-0.586.ckpt \
+    --latentft_unet_ckpt_path  $EXP_DIR/runs/.../658500-0.802.ckpt \
+    --uncond_ckpt_path         $EXP_DIR/runs/.../...ckpt
     # ...etc; see --help for the full list of --*_ckpt_path flags
 ```
 
-Supported `baseline_name` values include `latentft_point`, `latentft_unet`,
-`latentft_bandpass`, `unconditional`, `dac`, `vampnet`, `ilvr`, `guidance`,
-`cross`, `spectrogram`, the ablations (`abl_freq_masking`, `abl_corr`,
-`abl_log_scale`, `abl_spec_encoder`, `abl_no_encoder`), plus the group
-aliases `all`, `ablations`, and `rebuttals`.
+**`mode`** is one of:
+
+- `cond` — conditional generation (Sec 4.2). Generates variations of each
+  reference clip while preserving patterns at a chosen latent frequency band.
+- `blend` — blending (Sec 4.3). Blends two reference clips, taking
+  patterns at different latent frequency bands from each. This mode is
+  also used for the isolation / "zoom in" experiment (Sec 4.5) via a
+  self-blending configuration described in Appendix A.8 of the paper.
+
+**`baseline_name`** accepts any individual baseline or a group alias:
+
+| In the paper | In the code |
+|---|---|
+| LATENTFT-MLP  | `latentft_mlp` |
+| LATENTFT-UNet | `latentft_unet` |
+| LATENTFT-DAC  | `dac` |
+| Masked Token Model (VampNet) | `vampnet` |
+| Guidance | `guidance` |
+| ILVR | `ilvr` |
+| Cross Synthesis | `cross` |
+| DAC (post-hoc) | `dac` |
+| RAVE | `rave` |
+| Spectrogram | `spectrogram` |
+| Unconditional | `unconditional` |
+
+Ablations: `abl_freq_masking`, `abl_corr`, `abl_log_scale`,
+`abl_spec_encoder`, `abl_no_encoder`. Group aliases: `all`, `ablations`,
+`rebuttals`.
 
 Metrics are computed by
 [`reproduce_results/cond_and_blend/metrics.py`](reproduce_results/cond_and_blend/metrics.py)
 (FAD, loudness correlation, beat-spectrum cosine, tonnetz distance, and
 the in/out-of-band variants used in the paper).
 
-### Classification (linear probe)
+### Genre classifier for the interpretability experiment (Sec 4.6)
 
-A linear probe on GTZAN over frozen features:
+The classification script trains a linear probe on GTZAN over frozen
+features. Its purpose is to serve as the **genre classifier** used in the
+interpretability sweep (Sec 4.6 / Fig. 5), which measures how much genre
+information is preserved in generated variations as a function of the
+latent frequency band being conditioned on.
 
 ```bash
 python reproduce_results/classification/classification.py name=probe_run
@@ -212,10 +261,15 @@ These live as standalone training scripts under
 - `cross_synthesis.py` — cepstral cross-synthesis helper used for the
   `cross` baseline.
 
-### Hyperparameter sweeps
+### Interpreting the latent spectrum (Sec 4.6, Fig. 5)
 
-`reproduce_results/sweep/sweep.py` drives the sweep over latent dimension,
-masking thresholds, etc. See its `--help` for knobs.
+`reproduce_results/sweep/sweep.py` produces the preservation curves in
+Fig. 5. It generates many variations of a reference song while sweeping
+the conditioning mask across latent frequency bands, then measures how
+well each variation preserves **genre** (via the classifier trained
+above), **chord progression**, **predominant pitch**, and **tempo**
+relative to the original. Requires the
+[`[reproduce_results]`](#install) extras (uses `librosa` and `essentia`).
 
 ### Demos & figures
 
@@ -226,7 +280,7 @@ masking thresholds, etc. See its `--help` for knobs.
 ```
 .
 ├── latentft/                    # Core library
-│   ├── arc/                     # UNet, pointwise net, correlated FFT mask
+│   ├── arc/                     # UNet, MLP, correlated FFT mask
 │   ├── data/                    # WebDataset utils + MTG Jamendo preprocessor
 │   ├── diffusion/fmdiffae.py    # The FMDiffAE module + EDM sampler
 │   ├── lightning/               # Lightning modules, callbacks, data module
@@ -234,10 +288,10 @@ masking thresholds, etc. See its `--help` for knobs.
 │   └── utils/fad.py             # VGGish FAD
 ├── reproduce_results/
 │   ├── baselines_and_ablations/ # Standalone training scripts
-│   ├── classification/          # GTZAN linear probe
-│   ├── cond_and_blend/          # generate.py + metrics.py (main eval)
+│   ├── classification/          # GTZAN linear probe (Sec 4.6 genre classifier)
+│   ├── cond_and_blend/          # generate.py + metrics.py (Sec 4.2, 4.3, 4.5)
 │   ├── demos/                   # Figure-generation scripts
-│   └── sweep/                   # Hyperparameter sweeps
+│   └── sweep/                   # Interpretability sweeps (Sec 4.6)
 ├── exp/configs/                 # Hydra configs for train.py
 ├── train.py                     # Main training entry point
 ├── config.example.py            # Template for user config (copy to config.py)

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from latentft.arc.unet1d import GroupNorm
 
 
-class PointwiseNet(nn.Module):
+class MLP(nn.Module):
     def __init__(
         self,
         in_channels=80,
@@ -27,7 +27,7 @@ class PointwiseNet(nn.Module):
             self.out_conv = nn.Conv1d(in_channels, out_channels, 1)
 
         self.num_params = sum(p.numel() for p in self.parameters())
-        print(f"Pointwise Net Number of Parameters: {self.num_params:,}")
+        print(f"MLP Number of Parameters: {self.num_params:,}")
 
     def forward(self, x):
         if len(self.hidden_channels) > 0:

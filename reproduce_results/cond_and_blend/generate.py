@@ -155,7 +155,7 @@ def main(low_highs, baseline_name, args):
 
     # Load Data
     if baseline_name in [
-        "latentft_point",
+        "latentft_mlp",
         "latentft_unet",
         "latentft_bandpass",
         "guidance",
@@ -209,7 +209,7 @@ def main(low_highs, baseline_name, args):
 
     # FMDiffAE Baseline
     if baseline_name in [
-        "latentft_point",
+        "latentft_mlp",
         "latentft_unet",
         "latentft_bandpass",
         "abl_freq_masking",
@@ -218,8 +218,8 @@ def main(low_highs, baseline_name, args):
         "abl_spec_encoder",
         "abl_dft",
     ]:
-        if baseline_name == "latentft_point":
-            ckpt_path = args.latentft_point_ckpt_path
+        if baseline_name == "latentft_mlp":
+            ckpt_path = args.latentft_mlp_ckpt_path
         elif baseline_name == "latentft_unet":
             ckpt_path = args.latentft_unet_ckpt_path
         elif baseline_name == "latentft_bandpass":
@@ -726,7 +726,7 @@ if __name__ == "__main__":
         "--audio_data_path",
         default=f"{TEST_DATA_DIR}/test_subset_audio.npy",
     )
-    parser.add_argument("--latentft_point_ckpt_path")
+    parser.add_argument("--latentft_mlp_ckpt_path")
     parser.add_argument("--latentft_unet_ckpt_path")
     parser.add_argument("--uncond_ckpt_path")
     parser.add_argument("--abl_freq_masking_ckpt_path")
@@ -761,7 +761,7 @@ if __name__ == "__main__":
             "dac",
             "guidance",
             "ilvr",
-            "latentft_point",
+            "latentft_mlp",
             "latentft_unet",
             "spectrogram",
             "unconditional",
@@ -769,7 +769,7 @@ if __name__ == "__main__":
         ]
     elif args.baseline_name == "ablations":
         list_of_baselines = [
-            "latentft_point",
+            "latentft_mlp",
             "abl_freq_masking",
             "abl_corr",
             "abl_log_scale",

@@ -302,7 +302,7 @@ class Aggregator:
             "dac",
             "guidance",
             "ilvr",
-            "latentft_point",
+            "latentft_mlp",
             "latentft_unet",
             "spectrogram",
             "unconditional",
@@ -391,7 +391,7 @@ if __name__ == "__main__":
             "dac",
             "guidance",
             "ilvr",
-            "latentft_point",
+            "latentft_mlp",
             "latentft_unet",
             "spectrogram",
             "unconditional",
@@ -399,7 +399,7 @@ if __name__ == "__main__":
         ]
     elif args.baseline_name == "ablations":
         list_of_baselines = [
-            "latentft_point",
+            "latentft_mlp",
             "abl_freq_masking",
             "abl_corr",
             "abl_log_scale",

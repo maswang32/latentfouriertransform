@@ -12,7 +12,7 @@ import os
 # Leave WANDB_API_KEY empty and run `wandb login` once if you'd rather store it in ~/.netrc.
 os.environ["WANDB_API_KEY"] = ""
 os.environ["WANDB_ENTITY"]  = ""
-os.environ["WANDB_PROJECT"] = "fmdiffae"
+os.environ["WANDB_PROJECT"] = "latentft"
 
 # The official MTG Jamendo split-0 directory from
 # https://github.com/MTG/mtg-jamendo-dataset (clone it and point here):

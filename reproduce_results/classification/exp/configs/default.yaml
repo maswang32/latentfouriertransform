@@ -41,7 +41,7 @@ optimizer:
 # Logger
 logger:
   _target_: lightning.pytorch.loggers.WandbLogger
-  project: ${oc.env:WANDB_PROJECT,fmdiffae-classification}
+  project: ${oc.env:WANDB_PROJECT,latentft-classification}
   name: ${name}
   save_dir: ${run_dir}
   id: null

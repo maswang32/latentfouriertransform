@@ -4,10 +4,9 @@ Code for [**Latent Fourier Transform**][project-page] (ICLR 2026, **Oral**)
 by [Mason L. Wang](https://masonlwang.com/) and
 [Cheng-Zhi Anna Huang](https://czhuang.github.io/) (CSAIL, MIT).
 
-- [Project page + audio demos](https://masonlwang.com/latentfouriertransform/)
+- [Project Page and Audio Demos](https://masonlwang.com/latentfouriertransform/)
 - [Paper](https://arxiv.org/pdf/2604.17986)
 - [arXiv](https://arxiv.org/abs/2604.17986)
-- [OpenReview](https://openreview.net/forum?id=ogMxCjdCCq)
 
 [project-page]: https://masonlwang.com/latentfouriertransform/
 
@@ -337,7 +336,7 @@ relative to the original. Requires the
   booktitle     = {International Conference on Learning Representations (ICLR)},
   year          = {2026},
   note          = {Oral presentation},
-  url           = {https://openreview.net/forum?id=ogMxCjdCCq},
+  url           = {https://arxiv.org/abs/2604.17986},
   archivePrefix = {arXiv},
   eprint        = {2604.17986},
   primaryClass  = {cs.SD}

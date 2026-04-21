@@ -5,9 +5,9 @@ by [Mason L. Wang](https://masonlwang.com/) and
 [Cheng-Zhi Anna Huang](https://czhuang.github.io/) (CSAIL, MIT).
 
 - [Project page + audio demos](https://masonlwang.com/latentfouriertransform/)
-- [Paper](https://openreview.net/pdf?id=ogMxCjdCCq)
+- [Paper](https://arxiv.org/pdf/2604.17986)
+- [arXiv](https://arxiv.org/abs/2604.17986)
 - [OpenReview](https://openreview.net/forum?id=ogMxCjdCCq)
-<!-- - [arXiv](https://arxiv.org/abs/TODO) -->
 
 [project-page]: https://masonlwang.com/latentfouriertransform/
 
@@ -332,12 +332,15 @@ relative to the original. Requires the
 
 ```bibtex
 @inproceedings{wang2026latentft,
-  title     = {Latent {F}ourier Transform},
-  author    = {Wang, Mason L. and Huang, Cheng-Zhi Anna},
-  booktitle = {International Conference on Learning Representations (ICLR)},
-  year      = {2026},
-  note      = {Oral presentation},
-  url       = {https://openreview.net/forum?id=ogMxCjdCCq}
+  title         = {Latent {F}ourier Transform},
+  author        = {Wang, Mason L. and Huang, Cheng-Zhi Anna},
+  booktitle     = {International Conference on Learning Representations (ICLR)},
+  year          = {2026},
+  note          = {Oral presentation},
+  url           = {https://openreview.net/forum?id=ogMxCjdCCq},
+  archivePrefix = {arXiv},
+  eprint        = {2604.17986},
+  primaryClass  = {cs.SD}
 }
 ```
 
